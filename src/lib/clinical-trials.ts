@@ -34,6 +34,7 @@ export interface TrialSummary {
     country: string;
     status: string;
   }[];
+  applicableness: number;
 }
 
 export interface TrialSearchResult {
@@ -194,6 +195,7 @@ export function normalizeStudy(value: unknown): TrialSummary {
         };
       },
     ),
+    applicableness: 0, // start out as 0 during parsing
   };
 }
 
