@@ -13,7 +13,7 @@ export default function Home() {
       </header>
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-5 py-12 sm:px-8 sm:py-16">
         <div className="mb-9 text-center">
-          <h1 className="font-heading text-4xl leading-[1.12] font-medium tracking-[-0.045em] sm:text-[54px]">Find cures. <span className="text-primary"></span></h1>
+          <h1 className="font-heading text-4xl leading-[1.12] font-medium tracking-[-0.045em] sm:text-[54px]">Find trials. <span className="text-primary"></span></h1>
           <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-muted-foreground sm:text-base">Search for clinical studies or off label drugs that could help your condition.<br className="hidden sm:block" />{" "}</p>
         </div>
         <RequestForm />
