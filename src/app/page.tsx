@@ -2,18 +2,7 @@
 
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
-import { RequestForm, type SearchRequest } from "@/components/request-form";
-
-async function mockSearch(data: SearchRequest) {
-  await new Promise<void>((resolve) => setTimeout(resolve, 5000));
-  return { request: data, message: "Mock search complete" };
-}
-
-async function handleSearch(data: SearchRequest) {
-  // Replace mockSearch with your real async retrieval and processing.
-  const result = await mockSearch(data);
-  console.log("Search result:", result);
-}
+import { ClinicalTrialRequest } from "@/components/clinical-trial-request";
 
 export default function Home() {
   return (
@@ -29,7 +18,7 @@ export default function Home() {
           <h1 className="font-heading text-4xl leading-[1.12] font-medium tracking-[-0.045em] sm:text-[54px]">Find trials. <span className="text-primary"></span></h1>
           <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-muted-foreground sm:text-base">Explore clinical studies related to your condition.</p>
         </div>
-        <RequestForm onSubmit={handleSearch} />
+        <ClinicalTrialRequest />
       </main>
       <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-6 text-xs text-muted-foreground sm:px-10">
         <span>Made to help those in need.</span>

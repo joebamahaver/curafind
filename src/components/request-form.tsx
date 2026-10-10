@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowRight, CheckCheck, CircleAlert, Lightbulb, PencilLine, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCheck, CircleAlert, Lightbulb, PencilLine, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,7 +19,9 @@ type RequestFormProps = {
   label?: string;
   placeholder?: string;
   suggestions?: string[];
-  onSubmit?: (data: SearchRequest) => Promise<void>;
+  onSubmit: (data: SearchRequest, signal: AbortSignal) => Promise<void>;
+  onEdit?: () => void;
+  completedContent?: ReactNode;
 };
 
 export function RequestForm({
@@ -28,9 +30,13 @@ export function RequestForm({
   placeholder = "Cystic fibrosis",
   suggestions = ["HIV/AIDS", "Alcohol Addiction", "Bipolar disorder"],
   onSubmit,
+  onEdit,
+  completedContent,
 }: RequestFormProps) {
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  const controller = useRef<AbortController | null>(null);
+  useEffect(() => () => controller.current?.abort(), []);
   const [formData, setFormData] = useState<SearchRequest>({
     condition: initialValue.slice(0, 200),
     clinicalTrials: true,
@@ -48,19 +54,33 @@ export function RequestForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSubmit || isLoading) return;
+    if (!canSubmit || controller.current) return;
 
+    const request = new AbortController();
+    controller.current = request;
     const data: SearchRequest = { ...formData, condition: formData.condition.trim() };
     setSubmitted(data);
     setIsLoading(true);
     setError("");
     try {
-      await onSubmit?.(data);
-    } catch {
-      setError("The search failed. Please edit your input and try again.");
+      await onSubmit(data, request.signal);
+    } catch (error) {
+      if (!request.signal.aborted) setError(error instanceof Error ? error.message : "The search failed. Please edit your input and try again.");
     } finally {
-      setIsLoading(false);
+      if (controller.current === request) {
+        controller.current = null;
+        setIsLoading(false);
+      }
     }
+  }
+
+  function editInput() {
+    controller.current?.abort();
+    controller.current = null;
+    onEdit?.();
+    setSubmitted(null);
+    setIsLoading(false);
+    setError("");
   }
 
   return (
@@ -119,7 +139,13 @@ export function RequestForm({
         </form>
       ) : (
         <>
-          <CardContent className="flex min-h-[397px] flex-col items-center justify-center px-6 py-10 text-center sm:px-8">
+          {!isLoading && !error && completedContent ? (
+            <CardContent className="px-6 py-7 sm:px-8">
+              <h2 className="mb-4 font-heading text-2xl font-medium tracking-tight">Studies for {submitted.condition}</h2>
+              {completedContent}
+            </CardContent>
+          ) : (
+          <CardContent aria-busy={isLoading} className="flex min-h-[397px] flex-col items-center justify-center px-6 py-10 text-center sm:px-8">
             <div className="relative mb-7 flex size-24 items-center justify-center" aria-hidden="true">
               {isLoading ? (
                 <>
@@ -131,11 +157,11 @@ export function RequestForm({
               ) : error ? (
                 <span className="flex size-20 items-center justify-center rounded-full bg-destructive/10 text-destructive"><CircleAlert className="size-8" /></span>
               ) : (
-                <span className="flex size-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><Check className="size-8" /></span>
+                <span className="flex size-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><CheckCheck className="size-8" /></span>
               )}
             </div>
             <h2 className="font-heading text-2xl font-medium tracking-tight">{isLoading ? "Searching" : error ? "Search failed" : "Search complete"}</h2>
-            <p role="status" className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">{isLoading ? "Retrieving and processing your search request…" : error || "Your search request has finished processing."}</p>
+            <p role={error ? "alert" : "status"} aria-live="polite" className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">{isLoading ? "Retrieving and processing your search request…" : error || "Your search request has finished processing."}</p>
             <div className="mt-6 w-full rounded-lg border border-border bg-[#faf9f6] px-4 py-3 text-left">
               <span className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase">Your input</span>
               <p className="mt-1 text-sm break-words">{submitted.condition}</p>
@@ -147,7 +173,7 @@ export function RequestForm({
           </CardContent>
           )}
           <CardFooter className="justify-center rounded-b-2xl border-t border-border bg-[#faf9f6]/70 px-6 py-3">
-            <Button type="button" variant="ghost" size="sm" disabled={isLoading} onClick={() => setSubmitted(null)} className="text-xs text-muted-foreground"><PencilLine className="size-3.5" aria-hidden="true" />Edit input</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={editInput} className="text-xs text-muted-foreground"><PencilLine className="size-3.5" aria-hidden="true" />{isLoading ? "Cancel and edit input" : "Edit input"}</Button>
           </CardFooter>
         </>
       )}
