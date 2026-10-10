@@ -4,9 +4,15 @@ import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { RequestForm, type SearchRequest } from "@/components/request-form";
 
-function handleSearch(data: SearchRequest) {
-  // Intercept the form object here. Use JSON.stringify(data) for an API request body.
-  console.log("Search request:", data);
+async function mockSearch(data: SearchRequest) {
+  await new Promise<void>((resolve) => setTimeout(resolve, 5000));
+  return { request: data, message: "Mock search complete" };
+}
+
+async function handleSearch(data: SearchRequest) {
+  // Replace mockSearch with your real async retrieval and processing.
+  const result = await mockSearch(data);
+  console.log("Search result:", result);
 }
 
 export default function Home() {

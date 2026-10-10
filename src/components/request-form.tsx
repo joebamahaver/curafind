@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, Lightbulb, PencilLine, Sparkles } from "lucide-react";
+import { ArrowRight, Check, CircleAlert, Lightbulb, PencilLine, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,7 +19,7 @@ type RequestFormProps = {
   label?: string;
   placeholder?: string;
   suggestions?: string[];
-  onSubmit?: (data: SearchRequest) => void;
+  onSubmit?: (data: SearchRequest) => Promise<void>;
 };
 
 export function RequestForm({
@@ -37,6 +37,8 @@ export function RequestForm({
     offLabelDrugsOrSupplements: true,
   });
   const [submitted, setSubmitted] = useState<SearchRequest | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const canSubmit = Boolean(formData.condition.trim()) &&
     (formData.clinicalTrials || formData.offLabelDrugsOrSupplements);
 
@@ -44,13 +46,21 @@ export function RequestForm({
     setFormData((current) => ({ ...current, condition }));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || isLoading) return;
 
     const data: SearchRequest = { ...formData, condition: formData.condition.trim() };
     setSubmitted(data);
-    onSubmit?.(data);
+    setIsLoading(true);
+    setError("");
+    try {
+      await onSubmit?.(data);
+    } catch {
+      setError("The search failed. Please edit your input and try again.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -111,13 +121,21 @@ export function RequestForm({
         <>
           <CardContent className="flex min-h-[397px] flex-col items-center justify-center px-6 py-10 text-center sm:px-8">
             <div className="relative mb-7 flex size-24 items-center justify-center" aria-hidden="true">
-              <span className="absolute inset-0 rounded-full border border-primary/10" />
-              <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary/70 motion-safe:animate-spin motion-safe:[animation-duration:2s]" />
-              <span className="absolute inset-3 rounded-full border border-primary/15 motion-safe:animate-pulse" />
-              <span className="flex size-14 items-center justify-center rounded-full bg-primary/7 text-primary"><Sparkles className="size-6 motion-safe:animate-pulse" /></span>
+              {isLoading ? (
+                <>
+                  <span className="absolute inset-0 rounded-full border border-primary/10" />
+                  <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary/70 motion-safe:animate-spin motion-safe:[animation-duration:2s]" />
+                  <span className="absolute inset-3 rounded-full border border-primary/15 motion-safe:animate-pulse" />
+                  <span className="flex size-14 items-center justify-center rounded-full bg-primary/7 text-primary"><Sparkles className="size-6 motion-safe:animate-pulse" /></span>
+                </>
+              ) : error ? (
+                <span className="flex size-20 items-center justify-center rounded-full bg-destructive/10 text-destructive"><CircleAlert className="size-8" /></span>
+              ) : (
+                <span className="flex size-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><Check className="size-8" /></span>
+              )}
             </div>
-            <h2 className="font-heading text-2xl font-medium tracking-tight">Answer saved</h2>
-            <p role="status" className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">Your search request is ready for processing.</p>
+            <h2 className="font-heading text-2xl font-medium tracking-tight">{isLoading ? "Searching" : error ? "Search failed" : "Search complete"}</h2>
+            <p role="status" className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">{isLoading ? "Retrieving and processing your search request…" : error || "Your search request has finished processing."}</p>
             <div className="mt-6 w-full rounded-lg border border-border bg-[#faf9f6] px-4 py-3 text-left">
               <span className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase">Your input</span>
               <p className="mt-1 text-sm break-words">{submitted.condition}</p>
@@ -128,7 +146,7 @@ export function RequestForm({
             </div>
           </CardContent>
           <CardFooter className="justify-center rounded-b-2xl border-t border-border bg-[#faf9f6]/70 px-6 py-3">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setSubmitted(null)} className="text-xs text-muted-foreground"><PencilLine className="size-3.5" aria-hidden="true" />Edit input</Button>
+            <Button type="button" variant="ghost" size="sm" disabled={isLoading} onClick={() => setSubmitted(null)} className="text-xs text-muted-foreground"><PencilLine className="size-3.5" aria-hidden="true" />Edit input</Button>
           </CardFooter>
         </>
       )}
