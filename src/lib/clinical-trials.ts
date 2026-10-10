@@ -1,3 +1,5 @@
+import { dummyRankApplicableness } from "./strands";
+
 /** Framework-independent client for the ClinicalTrials.gov v2 studies API. */
 export interface DiagnosisSearch {
   diagnosis: string;
@@ -262,4 +264,22 @@ export async function searchTrialsByDiagnosis(
       "Could not read data from ClinicalTrials.gov. Please retry.",
     );
   }
+}
+
+export async function rankTrials(
+  studies: TrialSummary[],
+): Promise<TrialSummary[]> {
+  for (const study of studies) {
+    await dummyRankApplicableness(study);
+  }
+
+  studies.sort((a, b) => b.applicableness - a.applicableness);
+
+  const top_percentage = 0.25;
+  const top_studies = studies.slice(
+    0,
+    Math.ceil(studies.length * top_percentage),
+  );
+
+  return top_studies;
 }
