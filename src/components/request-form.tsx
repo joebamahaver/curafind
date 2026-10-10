@@ -1,7 +1,7 @@
 "use client";
 
-import { useId, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, Check, CircleAlert, Lightbulb, PencilLine, Sparkles } from "lucide-react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { ArrowRight, CheckCheck, CircleAlert, Lightbulb, PencilLine, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -145,6 +145,7 @@ export function RequestForm({
               ].filter(Boolean).join(" · ")}</p>
             </div>
           </CardContent>
+          )}
           <CardFooter className="justify-center rounded-b-2xl border-t border-border bg-[#faf9f6]/70 px-6 py-3">
             <Button type="button" variant="ghost" size="sm" disabled={isLoading} onClick={() => setSubmitted(null)} className="text-xs text-muted-foreground"><PencilLine className="size-3.5" aria-hidden="true" />Edit input</Button>
           </CardFooter>
