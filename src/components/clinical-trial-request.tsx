@@ -34,7 +34,7 @@ export function ClinicalTrialRequest() {
     if (!request.clinicalTrials) {
       throw new Error("Off-label drug or supplement search is not available yet. Select Clinical trials to search for studies.");
     }
-    const searchQuery: DiagnosisSearch = { diagnosis: request.condition, recruitment: "all", pageSize: 10 };
+    const searchQuery: DiagnosisSearch = { diagnosis: request.condition, recruitment: "recruiting-or-upcoming", pageSize: 10 };
     const data = await requestTrialSearch(searchQuery, signal);
     // A cancelled request must not replace a later search, even if fetch already resolved.
     if (signal.aborted) return;
@@ -71,7 +71,7 @@ export function ClinicalTrialRequest() {
       <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
         {result.studies.length} studies loaded{result.totalCount !== undefined ? ` of ${result.totalCount.toLocaleString()} matches` : ""}.
       </p>
-      <p className="mt-2 text-xs leading-5 text-muted-foreground">Results from ClinicalTrials.gov include all recruitment statuses. A diagnosis match does not confirm eligibility; review each study’s criteria with its study team.</p>
+      <p className="mt-2 text-xs leading-5 text-muted-foreground">Showing recruiting and not yet recruiting studies from ClinicalTrials.gov. A diagnosis match does not confirm eligibility; review each study’s criteria with its study team.</p>
       {result.studies.length === 0 && <p className="my-6 text-sm">{result.nextPageToken ? "No studies on this page. Load more to continue." : "No studies found. Try a broader condition or a different name for your diagnosis."}</p>}
       <div className="mt-6 space-y-5">
         {result.studies.map((study) => <article key={study.id} className="rounded-xl border border-border p-4 sm:p-5">

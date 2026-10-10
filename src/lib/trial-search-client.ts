@@ -13,14 +13,24 @@ export async function requestTrialSearch(
     signal,
   });
   let payload;
-  try { payload = await response.json(); } catch {
-    throw new Error("The search service returned an unreadable response. Please retry.");
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error(
+      "The search service returned an unreadable response. Please retry.",
+    );
   }
   if (!response.ok) {
-    throw new Error(typeof payload?.error === "string" ? payload.error : "Search failed. Please retry.");
+    throw new Error(
+      typeof payload?.error === "string"
+        ? payload.error
+        : "Search failed. Please retry.",
+    );
   }
   if (!payload || !Array.isArray(payload.studies)) {
-    throw new Error("The search service returned an unexpected response. Please retry.");
+    throw new Error(
+      "The search service returned an unexpected response. Please retry.",
+    );
   }
   return payload as TrialSearchResult;
 }
