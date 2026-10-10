@@ -3,7 +3,7 @@ export interface DiagnosisSearch {
   diagnosis: string;
   /** Stage/subtype text search, not an eligibility check. */
   keywords?: string;
-  recruitment?: "all" | "recruiting" | "recruiting-or-upcoming";
+  recruitment?: "recruiting" | "recruiting-or-upcoming";
   pageSize?: number;
   /** Opaque cursor; reuse the original search options for subsequent pages. */
   pageToken?: string;
@@ -49,7 +49,7 @@ function text(value: unknown): string { return typeof value === "string" ? value
 function list(value: unknown): unknown[] { return Array.isArray(value) ? value : []; }
 function strings(value: unknown): string[] { return list(value).filter((v): v is string => typeof v === "string"); }
 
-/** Runtime validation is also used at the HTTP boundary. Defaults keep searches broad. */
+/** Runtime validation is also used at the HTTP boundary. Defaults include recruiting and upcoming studies. */
 export function parseDiagnosisSearch(value: unknown): DiagnosisSearch {
   const input = record(value);
   const diagnosis = text(input.diagnosis).trim();
@@ -57,8 +57,8 @@ export function parseDiagnosisSearch(value: unknown): DiagnosisSearch {
   if (input.keywords !== undefined && (typeof input.keywords !== "string" || input.keywords.length > 500)) {
     throw new TrialSearchError("Additional keywords must be text, up to 500 characters.", 400);
   }
-  const recruitment = input.recruitment ?? "all";
-  if (recruitment !== "all" && recruitment !== "recruiting" && recruitment !== "recruiting-or-upcoming") {
+  const recruitment = input.recruitment ?? "recruiting-or-upcoming";
+  if (recruitment !== "recruiting" && recruitment !== "recruiting-or-upcoming") {
     throw new TrialSearchError("Choose a supported recruitment filter.", 400);
   }
   const pageSize = input.pageSize ?? 10;
@@ -78,9 +78,8 @@ export function buildClinicalTrialsUrl(input: DiagnosisSearch): URL {
   url.searchParams.set("format", "json");
   url.searchParams.set("query.cond", search.diagnosis);
   if (search.keywords) url.searchParams.set("query.term", search.keywords);
-  if (search.recruitment !== "all") {
-    url.searchParams.set("filter.overallStatus", search.recruitment === "recruiting" ? "RECRUITING" : "RECRUITING,NOT_YET_RECRUITING");
-  }
+  url.searchParams.set("filter.overallStatus", search.recruitment === "recruiting" ? "RECRUITING" : "RECRUITING,NOT_YET_RECRUITING");
+  
   url.searchParams.set("sort", "@relevance");
   url.searchParams.set("pageSize", String(search.pageSize));
   url.searchParams.set("countTotal", "true");
