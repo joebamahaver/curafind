@@ -92,16 +92,16 @@ export function parseDiagnosisSearch(value: unknown): DiagnosisSearch {
   ) {
     throw new TrialSearchError("Choose a supported recruitment filter.", 400);
   }
-  const pageSize = input.pageSize ?? 10;
+  const pageSize = input.pageSize ?? 100;
   // Smaller than the API maximum to keep interactive responses manageable.
   if (
     typeof pageSize !== "number" ||
     !Number.isInteger(pageSize) ||
-    pageSize < 1 ||
-    pageSize > 100
+    pageSize < 10 ||
+    pageSize > 1000
   ) {
     throw new TrialSearchError(
-      "Page size must be a whole number from 1 to 100.",
+      "Page size must be a whole number from 10 to 1000.",
       400,
     );
   }
