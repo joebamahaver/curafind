@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Curafind — Your idea. Your way.",
-  description: "Start with a question, a thought, or a spark of inspiration. Make it yours with Curafind.",
+  title: "Curafind | Clinical trial search playground",
+  description: "Test diagnosis-based searches against ClinicalTrials.gov with synthetic inputs.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
