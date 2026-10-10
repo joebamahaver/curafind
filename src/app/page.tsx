@@ -1,6 +1,13 @@
-import { ArrowDown, Sparkles } from "lucide-react";
+"use client";
+
+import { Sparkles } from "lucide-react";
 import Link from "next/link";
-import { RequestForm } from "@/components/request-form";
+import { RequestForm, type SearchRequest } from "@/components/request-form";
+
+function handleSearch(data: SearchRequest) {
+  // Intercept the form object here. Use JSON.stringify(data) for an API request body.
+  console.log("Search request:", data);
+}
 
 export default function Home() {
   return (
@@ -16,7 +23,7 @@ export default function Home() {
           <h1 className="font-heading text-4xl leading-[1.12] font-medium tracking-[-0.045em] sm:text-[54px]">Find trials. <span className="text-primary"></span></h1>
           <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-muted-foreground sm:text-base">Search for clinical studies or off label drugs that could help your condition.<br className="hidden sm:block" />{" "}</p>
         </div>
-        <RequestForm />
+        <RequestForm onSubmit={handleSearch} />
       </main>
       <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-6 text-xs text-muted-foreground sm:px-10">
         <span>Made to help those in need.</span>
