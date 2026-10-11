@@ -55,6 +55,7 @@ Groq, Cerebras, and Google directly.
 ## How to Use/Run
 
 - Clone the repo down
+- Setup API keys with providers based on `.example.env`.
 - `cd` into the repo and run `npm install` to install dependencies
 - Run `npm run build` to build for production
 - Run `npm run start` to start the production build
