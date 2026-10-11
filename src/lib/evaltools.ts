@@ -75,6 +75,7 @@ Evaluate the supplied study abstract for the supplied condition.
 const criterionQuestions = z.object({
     questions: z.array(
       z.object({
+        id: z.number(),
         question: z.string(),
         type: z.enum(["number", "yes-no", "string"]),
       }),
@@ -106,7 +107,13 @@ export async function criterionFinder(
       JSON.stringify({ criterion, condition }),
     );
   
-    return criterionQuestions.parse(result.structuredOutput);
+    const parsed = criterionQuestions.parse(result.structuredOutput);
+    return {
+      questions: parsed.questions.map((question) => ({
+        ...question,
+        id: crypto.randomUUID(),
+      })),
+    };
   }
 
   const eligibilitySchema = z.object({
