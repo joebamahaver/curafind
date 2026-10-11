@@ -11,5 +11,4 @@ const model = new OpenAIModel({
   params: { reasoning_effort: 'low', parallel_tool_calls: false },
 })
 const agent = new Agent({ model })
-const result = await agent.invoke('What is an agent harness, in one sentence?')
-console.log(result.lastMessage)
+
