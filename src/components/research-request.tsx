@@ -81,7 +81,7 @@ export function ResearchRequest({ onResults }: ResearchRequestProps) {
         <section aria-label="Research search results" className="space-y-4">
           <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
             {[
-              result.clinicalTrials && `${result.clinicalTrials.studies.length} clinical trials`,
+              result.clinicalTrials && `${result.clinicalTrials.trialSums.length} clinical trials`,
               result.drugResearch && `${result.drugResearch.evaluatedCount} evaluated drug studies`,
             ].filter(Boolean).join(" and ")} retrieved.
           </p>

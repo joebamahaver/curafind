@@ -1,9 +1,9 @@
-import type { DiagnosisSearch } from "./clinical-trials";
+import type { TrialParams } from "./trial-evaluation-types";
 import type { PreparedTrialSearchResult } from "./trial-workflow";
 
 /** Browser adapter shared by the patient flow **/
 export async function requestTrialSearch(
-  input: DiagnosisSearch,
+  input: TrialParams,
   signal?: AbortSignal,
   fetcher: typeof fetch = fetch,
 ): Promise<PreparedTrialSearchResult> {
