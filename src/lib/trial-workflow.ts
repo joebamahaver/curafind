@@ -16,8 +16,8 @@ export interface RankedTrialSummary extends TrialSummary {
   explanation: string;
 }
 
-export interface RankedTrialSearchResult extends TrialSearchResult {
-  studies: RankedTrialSummary[];
+export interface PreparedTrialSearchResult extends TrialSearchResult {
+  studies: TrialSummary[];
   questions: Awaited<ReturnType<typeof criterionFinder>>["questions"];
 }
 
@@ -25,7 +25,7 @@ export interface RankedTrialSearchResult extends TrialSearchResult {
 export async function searchTrialsAndMakeQuestions(
   input: DiagnosisSearch,
   options: { fetcher?: typeof fetch; signal?: AbortSignal } = {},
-): Promise<RankedTrialSearchResult> {
+): Promise<PreparedTrialSearchResult> {
   // Set topCount to null to use topPercentage instead.
   const topCount: number | null = 3;
   const topPercentage = 25;

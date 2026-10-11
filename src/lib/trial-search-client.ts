@@ -1,12 +1,12 @@
 import type { DiagnosisSearch } from "./clinical-trials";
-import type { RankedTrialSearchResult } from "./trial-workflow";
+import type { PreparedTrialSearchResult } from "./trial-workflow";
 
 /** Browser adapter shared by the patient flow **/
 export async function requestTrialSearch(
   input: DiagnosisSearch,
   signal?: AbortSignal,
   fetcher: typeof fetch = fetch,
-): Promise<RankedTrialSearchResult> {
+): Promise<PreparedTrialSearchResult> {
   const response = await fetcher("/api/trials", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -33,5 +33,5 @@ export async function requestTrialSearch(
       "The search service returned an unexpected response. Please retry.",
     );
   }
-  return payload as RankedTrialSearchResult;
+  return payload as PreparedTrialSearchResult;
 }
