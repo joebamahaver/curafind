@@ -1,4 +1,4 @@
-import type { TrialParams, TrialSummary, TrialSearchResult } from "./trial-evaluation-types"
+import type { TrialParams, TrialSummary, TrialSearchResult, TrialAnswer, FinalTrialResult } from "./trial-evaluation-types"
 import { searchTrialsByDiagnosis, TrialSearchError } from "./clinical-trials";
 import {
   evaluateTrial,
@@ -6,23 +6,6 @@ import {
   evaluateEligibility,
   rankTrials,
 } from "./evaltools";
-
-export interface RankedTrialSummary extends TrialSummary {
-  rank: number;
-  explanation: string;
-}
-
-export type TrialAnswer = {
-  id: string;
-  question: string;
-  answer: string | number | boolean | null;
-};
-
-export type FinalTrialResult = {
-  studies: RankedTrialSummary[];
-  evaluatedCount: number;
-  excludedCount: number;
-};
 
 function eligibilityText(trial: TrialSummary): string {
   return [

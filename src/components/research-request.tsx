@@ -7,7 +7,7 @@ import {
   requestResearchSearch,
   type ResearchSearchResult,
 } from "@/lib/research-search-client";
-import type { FinalTrialResult, TrialAnswer } from "@/lib/trial-workflow";
+import type { TrialAnswer, FinalTrialResult } from "@/lib/trial-evaluation-types"
 
 type ResearchRequestProps = {
   onResults?: (

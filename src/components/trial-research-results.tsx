@@ -1,4 +1,4 @@
-import type { FinalTrialResult } from "@/lib/trial-workflow";
+import type { FinalTrialResult } from "@/lib/trial-evaluation-types";
 
 export function TrialResearchResults({ result, activeIndex }: { result: FinalTrialResult; activeIndex?: number }) {
   const studies = activeIndex === undefined ? result.studies : result.studies.slice(activeIndex, activeIndex + 1);

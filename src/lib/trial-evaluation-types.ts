@@ -1,5 +1,3 @@
-
-
 export interface TrialParams {
   diagnosis: string;
   zipCode?: string;
@@ -38,6 +36,11 @@ export interface TrialSummary {
   applicableness: number;
 }
 
+export interface RankedTrialSummary extends TrialSummary {
+  rank: number;
+  explanation: string;
+}
+
 export interface TrialSearchResult {
   trialSums: TrialSummary[];
   totalCount?: number;
@@ -52,3 +55,15 @@ export interface TrialSearchResult {
     state: string;
   };
 }
+
+export type TrialAnswer = {
+  id: string;
+  question: string;
+  answer: string | number | boolean | null;
+};
+
+export type FinalTrialResult = {
+  studies: RankedTrialSummary[];
+  evaluatedCount: number;
+  excludedCount: number;
+};

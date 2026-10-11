@@ -8,7 +8,7 @@ import { DrugResearchResults } from "@/components/drug-research-results";
 import { TrialResearchResults } from "@/components/trial-research-results";
 import { TrialQuestions } from "@/components/trial-questions";
 import type { ResearchSearchResult } from "@/lib/research-search-client";
-import type { FinalTrialResult, TrialAnswer } from "@/lib/trial-workflow";
+import type { TrialAnswer, FinalTrialResult } from "@/lib/trial-evaluation-types"
 
 function ResultPages({ count, label, children }: {
   count: number;

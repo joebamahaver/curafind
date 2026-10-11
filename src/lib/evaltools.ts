@@ -2,7 +2,6 @@ import { Agent, Model } from "@strands-agents/sdk";
 import { OpenAIModel } from "@strands-agents/sdk/models/openai";
 import { z } from "zod";
 import type { TrialSummary } from "./trial-evaluation-types";
-import { vicort } from "./vicort";
 import { GoogleModel } from '@strands-agents/sdk/models/google'
 
 const groq = new OpenAIModel({
