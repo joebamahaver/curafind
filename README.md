@@ -52,22 +52,6 @@ of evaluation steps. Research APIs are called directly by application code,
 rather than exposed as agent tools. The current provider configuration calls
 Groq, Cerebras, and Google directly.
 
-### Clinical trial flow
-
-1. The browser sends the diagnosis to `POST /api/trials`.
-2. `src/lib/trial-workflow.ts` retrieves one page of recruiting or not-yet-recruiting trials from ClinicalTrials.gov. `TRIAL_SEARCH_LIMIT` controls the page size (default **10**).
-3. Trials are scored in batches of up to four concurrent agent calls. The highest-scoring trials are retained according to `TRIAL_SHORTLIST_LIMIT` (default **3**).
-4. The shortlisted trials' eligibility criteria are combined into one question-generation request. The browser displays the returned questions.
-5. Answers and the prepared trial data are sent to `POST /api/trials/rank`. The server checks each shortlisted trial's eligibility sequentially, then asks a ranking agent to order the remaining trials and explain their fit.
-6. The browser displays potential matches with links to the original trial records. A match does not confirm eligibility.
-
-### Drug research flow
-
-1. The browser invokes the `searchAndEvaluateDrugs` Server Action in `src/app/actions/drug-research.ts`.
-2. The server attempts to resolve the disease name and synonyms through MONDO, then runs PubMed searches for experimental treatments, clinical trials, and drug repurposing. Article IDs are deduplicated.
-3. Article metadata and abstracts are fetched concurrently. The first usable abstracts, up to `DRUG_EVAL_LIMIT` (default **5**), are evaluated by separate agents in parallel.
-4. Successful evaluations are sorted by applicability, then efficacy. The browser displays up to `DRUG_DISPLAY_LIMIT` results (default **2**), while reporting individual evaluation failures.
-
 ![flow diagram](./public/curafindflow.png)
 
 ## How to Use/Run
