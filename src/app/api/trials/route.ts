@@ -21,6 +21,7 @@ export async function POST(request: Request) {
     });
     return Response.json(result, { headers });
   } catch (error) {
+    console.error("[api/trials] failed:", error);
     return Response.json(
       {
         error:
