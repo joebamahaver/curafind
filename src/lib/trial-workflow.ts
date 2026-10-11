@@ -16,6 +16,28 @@ export interface RankedTrialSummary extends TrialSummary {
   explanation: string;
 }
 
+export type TrialAnswer = {
+  id: string;
+  question: string;
+  answer: string | number | boolean | null;
+};
+
+export type FinalTrialResult = {
+  studies: RankedTrialSummary[];
+  evaluatedCount: number;
+  excludedCount: number;
+};
+
+function eligibilityText(trial: TrialSummary): string {
+  return [
+    `Trial: ${trial.id}`,
+    `Minimum age: ${trial.eligibility.minimumAge || "Not provided"}`,
+    `Maximum age: ${trial.eligibility.maximumAge || "Not provided"}`,
+    `Sex: ${trial.eligibility.sex || "Not provided"}`,
+    `Eligibility criteria: ${trial.eligibility.criteria || "Not provided"}`,
+  ].join("\n");
+}
+
 export interface PreparedTrialSearchResult extends TrialSearchResult {
   studies: TrialSummary[];
   questions: Awaited<ReturnType<typeof criterionFinder>>["questions"];
@@ -53,15 +75,7 @@ export async function searchTrialsAndMakeQuestions(
 
   // concatenate criteria from applicable trials to create questions
   const combinedCriteria = applicable_trials
-    .map((trial) =>
-      [
-        `Trial: ${trial.id}`,
-        `Minimum age: ${trial.eligibility.minimumAge || "Not provided"}`,
-        `Maximum age: ${trial.eligibility.maximumAge || "Not provided"}`,
-        `Sex: ${trial.eligibility.sex || "Not provided"}`,
-        `Eligibility criteria: ${trial.eligibility.criteria || "Not provided"}`,
-      ].join("\n"),
-    )
+    .map(eligibilityText)
     .join("\n\n---\n\n");
 
   const { questions } =
@@ -78,5 +92,35 @@ export async function searchTrialsAndMakeQuestions(
       rank: index + 1,
       explanation: "",
     })),
+  };
+}
+
+
+export async function evaluateEligibilityAndRankTrials(
+  prepared_trials: Pick<PreparedTrialSearchResult, "studies" | "questions">,
+  answers: TrialAnswer[],
+  condition: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<FinalTrialResult> {
+  // Match answers to the prepared questions; absent answers stay unknown.
+  const answersById = new Map(answers.map((answer) => [answer.id, answer.answer]));
+  const questionAnswers = prepared_trials.questions.map(({ id, question }) => ({
+    question,
+    answer: answersById.get(id) ?? null,
+  }));
+  const eligibleTrials: TrialSummary[] = [];
+  for (const trial of prepared_trials.studies) {
+    options.signal?.throwIfAborted();
+    const eligible = await evaluateEligibility(questionAnswers, condition, eligibilityText(trial));
+    if (eligible) eligibleTrials.push(trial);
+  }
+  options.signal?.throwIfAborted();
+  const ranked = eligibleTrials.length > 0
+    ? await rankTrials(questionAnswers, condition, eligibleTrials)
+    : [];
+  return {
+    studies: ranked.map(({ trial, rank, explanation }) => ({ ...trial, rank, explanation })),
+    evaluatedCount: prepared_trials.studies.length,
+    excludedCount: prepared_trials.studies.length - eligibleTrials.length,
   };
 }

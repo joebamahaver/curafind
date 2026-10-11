@@ -1,15 +1,11 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
-import type { PreparedTrialSearchResult } from "@/lib/trial-workflow";
+import type { PreparedTrialSearchResult, TrialAnswer } from "@/lib/trial-workflow";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-export type TrialAnswer = {
-  id: string;
-  question: string;
-  answer: string | number | boolean | null;
-};
+export type { TrialAnswer } from "@/lib/trial-workflow";
 
 type TrialQuestionsProps = {
   questions: PreparedTrialSearchResult["questions"];
@@ -64,10 +60,14 @@ export function TrialQuestions({ questions, onSubmit }: TrialQuestionsProps) {
         Questions about trial eligibility
       </h2>
       {questions.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">
+        <form onSubmit={handleSubmit} className="mt-2 space-y-3">
+        <p className="text-sm text-muted-foreground">
           No questions were generated for these trials. This does not confirm
           eligibility.
         </p>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {onSubmit && <Button type="submit" disabled={submitting}>{submitting ? "Checking trials…" : "Continue without answers"}</Button>}
+        </form>
       ) : (
         <>
           <p
