@@ -3,6 +3,7 @@ import {
   TrialSearchError,
 } from "@/lib/clinical-trials";
 import { searchTrialsAndMakeQuestions } from "@/lib/trial-workflow";
+import { trialLocationSchema } from "@/lib/trial-location";
 
 export async function POST(request: Request) {
   const headers = { "Cache-Control": "no-store" };
@@ -16,7 +17,10 @@ export async function POST(request: Request) {
     );
   }
   try {
-    const result = await searchTrialsAndMakeQuestions(parseDiagnosisSearch(body), {
+    const search = parseDiagnosisSearch(body);
+    const location = trialLocationSchema.safeParse(search);
+    if (!location.success) throw new TrialSearchError(location.error.issues[0].message, 400);
+    const result = await searchTrialsAndMakeQuestions(search, {
       signal: request.signal,
     });
     return Response.json(result, { headers });

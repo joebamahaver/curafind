@@ -7,9 +7,12 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { trialLocationSchema } from "@/lib/trial-location";
 
 export type SearchRequest = {
   condition: string;
+  zipCode: string;
+  travelDistanceMiles: number | null;
   clinicalTrials: boolean;
   offLabelDrugsOrSupplements: boolean;
 };
@@ -26,7 +29,7 @@ type RequestFormProps = {
 
 export function RequestForm({
   initialValue = "",
-  label = "What rare disease do you have?",
+  label = "What condition are you researching?",
   placeholder = "Cystic fibrosis",
   suggestions = ["HIV/AIDS", "Alcohol Addiction", "Bipolar disorder"],
   onSubmit,
@@ -39,6 +42,8 @@ export function RequestForm({
   useEffect(() => () => controller.current?.abort(), []);
   const [formData, setFormData] = useState<SearchRequest>({
     condition: initialValue.slice(0, 200),
+    zipCode: "",
+    travelDistanceMiles: null,
     clinicalTrials: true,
     offLabelDrugsOrSupplements: true,
   });
@@ -46,7 +51,8 @@ export function RequestForm({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const canSubmit = Boolean(formData.condition.trim()) &&
-    (formData.clinicalTrials || formData.offLabelDrugsOrSupplements);
+    (formData.clinicalTrials || formData.offLabelDrugsOrSupplements) &&
+    (!formData.clinicalTrials || trialLocationSchema.safeParse(formData).success);
 
   function setCondition(condition: string) {
     setFormData((current) => ({ ...current, condition }));
@@ -58,7 +64,7 @@ export function RequestForm({
 
     const request = new AbortController();
     controller.current = request;
-    const data: SearchRequest = { ...formData, condition: formData.condition.trim() };
+    const data: SearchRequest = { ...formData, condition: formData.condition.trim(), zipCode: formData.zipCode.trim() };
     setSubmitted(data);
     setIsLoading(true);
     setError("");
@@ -134,6 +140,34 @@ export function RequestForm({
               <p id={`${id}-options-hint`} className="text-xs text-muted-foreground">Choose at least one option.</p>
             </fieldset>
 
+            {formData.clinicalTrials && (
+              <fieldset className="mt-7 space-y-4" aria-describedby={`${id}-travel-hint`}>
+                <legend className="mb-3 text-sm font-medium">Where can you attend a clinical trial?</legend>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field className="gap-2">
+                    <FieldLabel htmlFor={`${id}-zip`}>U.S. ZIP code</FieldLabel>
+                    <Input id={`${id}-zip`} name="zipCode" inputMode="numeric" autoComplete="postal-code"
+                      value={formData.zipCode} required pattern="[0-9]{5}" maxLength={5} placeholder="64108"
+                      onValueChange={(zipCode) => setFormData((current) => ({ ...current, zipCode }))}
+                      className="h-12 rounded-lg border-border" />
+                  </Field>
+                  <Field className="gap-2">
+                    <FieldLabel htmlFor={`${id}-distance`}>Maximum travel (miles)</FieldLabel>
+                    <Input id={`${id}-distance`} name="travelDistanceMiles" type="number" min={1} max={10000} step="any"
+                      value={formData.travelDistanceMiles ?? ""} required placeholder="50"
+                      onChange={(event) => {
+                        const miles = event.currentTarget.valueAsNumber;
+                        setFormData((current) => ({ ...current, travelDistanceMiles: Number.isFinite(miles) ? miles : null }));
+                      }}
+                      className="h-12 rounded-lg border-border" />
+                  </Field>
+                </div>
+                <p id={`${id}-travel-hint`} className="text-xs leading-5 text-muted-foreground">
+                  Find trial sites within this radius of your ZIP code. Driving distance may be longer.
+                </p>
+              </fieldset>
+            )}
+
             <Button type="submit" disabled={!canSubmit} className="mt-8 h-12 w-full rounded-lg text-sm shadow-sm">Search<ArrowRight className="ml-1 size-4" aria-hidden="true" /></Button>
           </CardContent>
         </form>
@@ -142,6 +176,7 @@ export function RequestForm({
           {!isLoading && !error && completedContent ? (
             <CardContent className="px-6 py-7 sm:px-8">
               <h2 className="mb-4 font-heading text-2xl font-medium tracking-tight">Studies for {submitted.condition}</h2>
+              {submitted.clinicalTrials && <p className="mb-4 text-xs text-muted-foreground">Trial sites within {submitted.travelDistanceMiles} miles of ZIP {submitted.zipCode}.</p>}
               {completedContent}
             </CardContent>
           ) : (
@@ -165,6 +200,7 @@ export function RequestForm({
             <div className="mt-6 w-full rounded-lg border border-border bg-[#faf9f6] px-4 py-3 text-left">
               <span className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase">Your input</span>
               <p className="mt-1 text-sm break-words">{submitted.condition}</p>
+              {submitted.clinicalTrials && <p className="mt-2 text-xs text-muted-foreground">Within {submitted.travelDistanceMiles} miles of ZIP {submitted.zipCode}</p>}
               <p className="mt-2 text-xs text-muted-foreground">{[
                 submitted.clinicalTrials && "Clinical trials",
                 submitted.offLabelDrugsOrSupplements && "Off-label drugs or supplements",

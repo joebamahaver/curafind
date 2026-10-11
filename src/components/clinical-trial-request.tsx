@@ -34,7 +34,10 @@ export function ClinicalTrialRequest() {
     if (!request.clinicalTrials) {
       throw new Error("Off-label drug or supplement search is not available yet. Select Clinical trials to search for studies.");
     }
-    const searchQuery: DiagnosisSearch = { diagnosis: request.condition, recruitment: "recruiting-or-upcoming", pageSize: 10 };
+    const searchQuery: DiagnosisSearch = {
+      diagnosis: request.condition, recruitment: "recruiting-or-upcoming", pageSize: 10,
+      zipCode: request.zipCode, travelDistanceMiles: request.travelDistanceMiles ?? undefined,
+    };
     const data = await requestTrialSearch(searchQuery, signal);
     // A cancelled request must not replace a later search, even if fetch already resolved.
     if (signal.aborted) return;
