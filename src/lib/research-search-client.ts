@@ -1,5 +1,5 @@
 import type { SearchRequest } from "@/components/request-form";
-import type { TrialSearchResult } from "./clinical-trials";
+import type { PreparedTrialSearchResult } from "./trial-workflow";
 import { requestTrialSearch } from "./trial-search-client";
 import { searchAndEvaluateDrugs } from "@/app/actions/drug-research";
 import type { DrugResearchResult } from "./drug-evaluation-types";
@@ -7,7 +7,7 @@ import type { DrugResearchResult } from "./drug-evaluation-types";
 export type { ResearchArticle } from "./drug-evaluation-types";
 
 export type ResearchSearchResult = {
-  clinicalTrials: TrialSearchResult | null;
+  clinicalTrials: PreparedTrialSearchResult | null;
   drugResearch: DrugResearchResult | null;
   errors?: { clinicalTrials?: string; drugResearch?: string };
 };

@@ -4,6 +4,7 @@ const trialSchema = z.object({
   summary: z.string().trim().min(1),
   title: z.string().trim().min(1),
   condition: z.string().trim().min(1),
+  trial_conditions: z.array(z.string()).default([]),
 });
 
 export async function POST(request: Request) {
@@ -36,8 +37,8 @@ export async function POST(request: Request) {
 
   try {
     const { evaluateTrial } = await import("@/lib/evaltools");
-    const { summary, title, condition } = parsed.data;
-    const result = await evaluateTrial(summary, title, condition);
+    const { summary, title, condition, trial_conditions } = parsed.data;
+    const result = await evaluateTrial(summary, title, condition, trial_conditions);
     return Response.json(result, { headers });
   } catch (error) {
     console.error("Trial evaluation failed:", error);
