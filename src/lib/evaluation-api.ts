@@ -64,9 +64,9 @@ export async function evaluationResponse<T>(
     );
   }
 
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return Response.json(
-      { error: "GEMINI_API_KEY is not configured." },
+      { error: "GROQ_API_KEY is not configured." },
       { status: 500, headers },
     );
   }
