@@ -42,7 +42,6 @@ export async function requestResearchSearch(
       ? requestTrialSearch({
           diagnosis: condition,
           recruitment: "recruiting-or-upcoming",
-          pageSize: 10,
         }, signal, fetcher)
       : null,
     request.offLabelDrugsOrSupplements

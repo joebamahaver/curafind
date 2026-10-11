@@ -3,7 +3,7 @@ import type {
   TrialSummary,
   TrialSearchResult,
 } from "./clinical-trials";
-import { searchTrialsByDiagnosis } from "./clinical-trials";
+import { searchTrialsByDiagnosis, TrialSearchError } from "./clinical-trials";
 import {
   evaluateTrial,
   criterionFinder,
@@ -43,16 +43,26 @@ export interface PreparedTrialSearchResult extends TrialSearchResult {
   questions: Awaited<ReturnType<typeof criterionFinder>>["questions"];
 }
 
+function readTrialLimit(name: string, fallback: number, minimum: number): number {
+  const value = process.env[name];
+  if (value === undefined) return fallback;
+  const limit = Number(value);
+  if (!Number.isSafeInteger(limit) || limit < minimum || limit > 1000) {
+    throw new TrialSearchError(`${name} must be a whole number from ${minimum} to 1000.`, 500);
+  }
+  return limit;
+}
+
 /** Score and shortlist trials from one search page by applicability. */
 export async function searchTrialsAndMakeQuestions(
   input: DiagnosisSearch,
   options: { fetcher?: typeof fetch; signal?: AbortSignal } = {},
 ): Promise<PreparedTrialSearchResult> {
-  // Set topCount to null to use topPercentage instead.
-  const topCount: number | null = 3;
-  const topPercentage = 25;
+  const searchLimit = readTrialLimit("TRIAL_SEARCH_LIMIT", 10, 10);
+  const shortlistLimit = readTrialLimit("TRIAL_SHORTLIST_LIMIT", 3, 1);
 
-  const trials = await searchTrialsByDiagnosis(input, options);
+  // The server configuration controls retrieval, regardless of the caller's page size.
+  const trials = await searchTrialsByDiagnosis({ ...input, pageSize: searchLimit }, options);
 
   const studies: TrialSummary[] = [];
   const concurrency = 4;
@@ -75,11 +85,9 @@ export async function searchTrialsAndMakeQuestions(
   }
   options.signal?.throwIfAborted();
 
-  // sort by applicableness and take top 3 or top x%
+  // Keep up to the configured number of highest-scoring trials.
   studies.sort((a, b) => b.applicableness - a.applicableness);
-  const selectionCount =
-    topCount ?? Math.ceil((studies.length * topPercentage) / 100);
-  const applicable_trials = studies.slice(0, selectionCount);
+  const applicable_trials = studies.slice(0, shortlistLimit);
 
   // concatenate criteria from applicable trials to create questions
   const combinedCriteria = applicable_trials
