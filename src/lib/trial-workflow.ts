@@ -4,6 +4,7 @@ import type {
   TrialSearchResult,
 } from "./clinical-trials";
 import { searchTrialsByDiagnosis } from "./clinical-trials";
+import { evaluateTrial, criterionFinder, evaluateEligibility, rankTrials } from "./evaltools"
 
 export interface RankedTrialSummary extends TrialSummary {
   rank: number;
@@ -20,7 +21,16 @@ export async function searchAndRankTrials(
   options: { fetcher?: typeof fetch; signal?: AbortSignal } = {},
 ): Promise<RankedTrialSearchResult> {
   const trials = await searchTrialsByDiagnosis(input, options);
+
+
   const studies = [...trials.studies];
+
+  for (const trial of studies){
+    const result = await evaluateTrial(trial.summary, trial.title, input.diagnosis, trial.conditions);
+    trial.applicableness = result.applicableness;
+  }
+  
+
 
   // Temporary Fisher–Yates shuffle; replace with evaluation and ranking later.
   for (let index = studies.length - 1; index > 0; index--) {
