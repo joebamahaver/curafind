@@ -45,9 +45,17 @@ curl -i --max-time 120 http://localhost:3000/api/trials \
 The resulting `results.clinicalTrials.locationFilter` contains the ZIP,
 distance, resolved latitude and longitude, city, and state. The existing
 `requestUrl` includes the actual distance filter; the full trial JSON remains
-available in `results.clinicalTrials.studies`.
+available in `results.clinicalTrials.trialSums`. This array contains the scored
+shortlist, alongside generated `questions`. After answers are submitted to
+`/api/trials/rank`, the final ranked response uses `studies` instead.
+
+The workflow retrieves one page using `TRIAL_SEARCH_LIMIT` (default 10), scores
+the returned trials, and keeps up to `TRIAL_SHORTLIST_LIMIT` (default 3).
+`totalCount` describes the full search matches, not the shortlist size. See the
+[trial integration guide](./trial-evaluation-integration.md) for the pipeline.
 
 The low-level `searchTrialsByDiagnosis` helper still supports searches without
 geography for other callers. The patient form and `/api/trials` require location
 information. When requesting another page, reuse the same ZIP and distance
-alongside `pageToken`.
+alongside `pageToken`. Each page is evaluated and generates its own questions;
+the main patient results reader does not automatically load further pages.
