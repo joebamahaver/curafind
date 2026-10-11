@@ -4,10 +4,6 @@ import { callbackify } from 'util'
 import z, { properties } from 'zod'
 import { describe } from 'zod/v4/core'
 
-// Reads GEMINI_API_KEY from the environment.
-const model = new GoogleModel({ modelId: 'gemini-3.8-flash' })
-const agent = new Agent({ model })
-
 let vicort= `Appraising the clinical applicability of a study requires evaluating whether research findings can inform or directly alter patient care for a specific condition. The FrACAS framework, which stands for Framework to Appraise the Clinical Applicability of Studies, and its accompanying VICORT checklist classify studies into three operational domains: Research, Practice-Informing, or Practice-Changing. This classification is achieved by sequentially evaluating six distinct criteria.
 
 The first criterion is Validity. Evaluating validity involves determining whether the study internal methodology is robust and free from critical risk of bias, such as confounding, selection bias, or measurement issues. Internal validity serves as the prerequisite baseline; if a study lacks valid methods, it remains in the Research domain and cannot inform clinical action.
@@ -22,7 +18,7 @@ The fifth criterion is Risk-Benefit Comprehensiveness. Clinicians must analyze t
 
 The final criterion is Transposability. This involves determining external applicability by examining whether the intervention can be practically implemented within a specific local clinical setting. Considerations include target population representativeness, resource requirements, cost-effectiveness, institutional feasibility, ethics, and patient values. Fulfilling all six VICORT criteria qualifies the study for the Practice-Changing domain, meaning it can directly alter management decisions, indication criteria, or treatment choices for target patients in local practice.`
 
-const studyApplicable=tool({
+export const studyApplicable=tool({
     name:'studyApplicable',
     description:'Rate the applicableness of a clinical trial based on the following: ' + vicort,
     inputSchema: z.object({
