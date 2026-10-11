@@ -31,13 +31,15 @@ const goog3=new GoogleModel({modelId:"gemini-3.1-flash-lite"})
 const models: Model[] = [groq];
 if (cerebras) models.push(cerebras);
 let cursor = 0;
-models.push(goog1)
-models.push(goog2)
-models.push(goog3)
+//models.push(goog1)
+//models.push(goog2)
+//models.push(goog3)
 
 function getModel(): Model {
   const selected = models[cursor];
   cursor = (cursor + 1) % models.length;
+  const provider = selected === groq ? "Groq" : selected === cerebras ? "Cerebras" : "Google";
+  console.info(`[evaltools] Using ${provider}: ${selected.getConfig().modelId}`);
   return selected;
 }
 
@@ -52,18 +54,32 @@ export async function evaluateTrial(
   condition: string,
   trial_conditions: string[],
 ) {
-  const evaluator = new Agent({
-    model: getModel(),
-    systemPrompt: `${vicort}\nEvaluate the supplied trial.`,
-    structuredOutputSchema: scoreSchema,
-  });
   const trial_conditions_str = "Trial Conditions" + trial_conditions;
+  const payload = JSON.stringify({ summary, title, condition, trial_conditions_str });
 
-  const result = await evaluator.invoke(
-    JSON.stringify({ summary, title, condition, trial_conditions_str }),
-  );
+  async function invokeWithModel(model: Model) {
+    const evaluator = new Agent({
+      model,
+      systemPrompt: `Evaluate the supplied trial and how applicable it is to the condition.`,
+      structuredOutputSchema: scoreSchema,
+    });
+    const result = await evaluator.invoke(payload);
+    return scoreSchema.parse(result.structuredOutput);
+  }
 
-  return scoreSchema.parse(result.structuredOutput);
+  const selected = getModel();
+  try {
+    return await invokeWithModel(selected);
+  } catch (error) {
+    // Retry the Google transport failure, not invalid scores or arbitrary errors.
+    if (!(selected instanceof GoogleModel) || !(error instanceof Error) ||
+      !error.message.includes("Incomplete JSON segment at the end")) {
+      throw error;
+    }
+    console.warn(`[evaltools] ${selected.getConfig().modelId} stream failed: ${error.message}`);
+    console.info(`[evaltools] Retrying trial once with Groq: ${groq.getConfig().modelId}`);
+    return invokeWithModel(groq);
+  }
 }
 
 const studySchema = scoreSchema.extend({
@@ -115,7 +131,7 @@ export async function criterionFinder(
     condition: string,
   ) {
     const evaluator = new Agent({
-        model: getModel(),
+        model: goog3,
         systemPrompt: `
     Generate questions for the user based on the supplied eligibility criteria.
     

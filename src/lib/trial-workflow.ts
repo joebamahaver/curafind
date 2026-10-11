@@ -54,18 +54,26 @@ export async function searchTrialsAndMakeQuestions(
 
   const trials = await searchTrialsByDiagnosis(input, options);
 
-  const studies = [...trials.studies];
+  const studies: TrialSummary[] = [];
+  const concurrency = 4;
 
-  // evaluate each trial for applicable ness
-  for (const trial of studies) {
-    const result = await evaluateTrial(
-      trial.summary,
-      trial.title,
-      input.diagnosis,
-      trial.conditions,
-    );
-    trial.applicableness = result.applicableness;
+  // Each call gets a fresh agent and the next model in the existing pool.
+  // Finish a batch before starting another to keep at most four evaluations active.
+  for (let start = 0; start < trials.studies.length; start += concurrency) {
+    options.signal?.throwIfAborted();
+    const batch = trials.studies.slice(start, start + concurrency);
+    const evaluated = await Promise.all(batch.map(async trial => {
+      const result = await evaluateTrial(
+        trial.summary,
+        trial.title,
+        input.diagnosis,
+        trial.conditions,
+      );
+      return { ...trial, applicableness: result.applicableness };
+    }));
+    studies.push(...evaluated);
   }
+  options.signal?.throwIfAborted();
 
   // sort by applicableness and take top 3 or top x%
   studies.sort((a, b) => b.applicableness - a.applicableness);
