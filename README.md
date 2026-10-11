@@ -40,11 +40,9 @@ Strands supports five evaluation steps in CuraFind:
 | `rankTrials` | An ordered list of trial IDs and explanations. The application checks that every supplied trial appears exactly once and reattaches its original metadata. |
 | `evaluateStudy` | A drug name, applicability score, and estimated efficacy rating from an article abstract. |
 
-Most evaluations use Strands' `OpenAIModel` adapter with Groq's
-`openai/gpt-oss-20b`. When `CEREBRAS_API_KEY` is configured, a shared round-robin
-selector also uses Cerebras' `qwen-3.8-27b`. Question generation uses Strands'
-`GoogleModel` adapter with `gemini-3.1-flash-lite`. The Gemma model instances in
-the evaluator file are currently excluded from the rotation.
+Most evaluations use Strands' `OpenAIModel` adapter with Groq. When `CEREBRAS_API_KEY` is configured, a shared round-robin
+selector also uses Cerebras' models. Question generation uses Strands'
+`GoogleModel` adapter with their models.
 
 Strands provides the agent invocation and structured-output interface; the
 TypeScript application controls retrieval, batching, selection, and the order
