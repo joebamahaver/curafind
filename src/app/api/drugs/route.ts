@@ -1,5 +1,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
+
 import {
   searchDrugResearch,
   getArticleDetails,
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
       request.nextUrl.searchParams.get("includeAbstracts") === "true";
 
     const articleIds = await searchDrugResearch(diagnosis);
-const articles = await getArticleDetails(articleIds);
+    const articles = await getArticleDetails(articleIds);
 
     if (!includeAbstracts) {
       return NextResponse.json({

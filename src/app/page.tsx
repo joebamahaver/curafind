@@ -2,7 +2,7 @@
 
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
-import { ClinicalTrialRequest } from "@/components/clinical-trial-request";
+import { ResearchRequest } from "@/components/research-request";
 
 export default function Home() {
   return (
@@ -15,10 +15,10 @@ export default function Home() {
       </header>
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-5 py-12 sm:px-8 sm:py-16">
         <div className="mb-9 text-center">
-          <h1 className="font-heading text-4xl leading-[1.12] font-medium tracking-[-0.045em] sm:text-[54px]">Find trials. <span className="text-primary"></span></h1>
-          <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-muted-foreground sm:text-base">Explore clinical studies related to your condition.</p>
+          <h1 className="font-heading text-4xl leading-[1.12] font-medium tracking-[-0.045em] sm:text-[54px]">Explore research.</h1>
+          <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-muted-foreground sm:text-base">Find clinical trials and drug research related to your condition.</p>
         </div>
-        <ClinicalTrialRequest />
+        <ResearchRequest />
       </main>
       <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-6 text-xs text-muted-foreground sm:px-10">
         <span>Made to help those in need.</span>
