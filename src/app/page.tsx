@@ -1,18 +1,13 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
-import Link from "next/link";
 import { ResearchRequest } from "@/components/research-request";
+import { SiteHeader } from "@/components/site-header";
 
 export default function Home() {
   return (
     <div className="flex min-h-svh flex-col bg-[#faf9f6]">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-7 sm:px-10">
-        <Link href="/" aria-label="Curafind home" className="flex items-center gap-2.5 font-heading text-xl font-semibold tracking-tight">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Sparkles className="size-5" aria-hidden="true" /></span>
-          curafind<span className="-ml-2 text-primary">.</span>
-        </Link>
-      </header>
+      <SiteHeader />
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-5 py-12 sm:px-8 sm:py-16">
         <div className="mb-9 text-center">
           <h1 className="font-heading text-4xl leading-[1.12] font-medium tracking-[-0.045em] sm:text-[54px]">Explore research.</h1>
