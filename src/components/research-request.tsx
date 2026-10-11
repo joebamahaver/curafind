@@ -2,14 +2,11 @@
 
 import { startTransition, useEffect, useRef, useState } from "react";
 import { RequestForm, type SearchRequest } from "@/components/request-form";
-import { DrugResearchResults } from "@/components/drug-research-results";
+import { ResearchResultsReader } from "@/components/research-results-reader";
 import {
   requestResearchSearch,
   type ResearchSearchResult,
 } from "@/lib/research-search-client";
-import { TrialQuestions } from "@/components/trial-questions";
-import { TrialResearchResults } from "@/components/trial-research-results";
-import { Button } from "@/components/ui/button";
 import type { FinalTrialResult, TrialAnswer } from "@/lib/trial-workflow";
 
 type ResearchRequestProps = {
@@ -94,35 +91,12 @@ export function ResearchRequest({ onResults }: ResearchRequestProps) {
           {result.errors?.drugResearch && (
             <p role="alert" className="text-sm text-destructive">Drug research: {result.errors.drugResearch}</p>
           )}
-          <div
-            data-results-columns={result.clinicalTrials && result.drugResearch ? true : undefined}
-            className={`grid items-start gap-8 ${result.clinicalTrials && result.drugResearch ? "lg:grid-cols-2" : ""}`}
-          >
-            {result.clinicalTrials && (
-              <div className="min-w-0 space-y-4 break-words">
-                {result.clinicalTrials.studies.length > 0
-                  ? <>
-                    <div hidden={rankedTrials !== null}>
-                      <TrialQuestions
-                        key={JSON.stringify(result.clinicalTrials.questions.map(({ id }) => id))}
-                        questions={result.clinicalTrials.questions}
-                        onSubmit={submitTrialAnswers}
-                      />
-                    </div>
-                    {rankedTrials && <>
-                      <TrialResearchResults result={rankedTrials} />
-                      <Button type="button" variant="outline" onClick={() => setRankedTrials(null)}>Edit trial answers</Button>
-                    </>}
-                    </>
-                  : <p className="text-sm text-muted-foreground">No clinical trials found for this search.</p>}
-              </div>
-            )}
-            {result.drugResearch && (
-              <div className="min-w-0 break-words">
-                <DrugResearchResults result={result.drugResearch} />
-              </div>
-            )}
-          </div>
+          <ResearchResultsReader
+            result={result}
+            rankedTrials={rankedTrials}
+            onSubmitAnswers={submitTrialAnswers}
+            onEditAnswers={() => setRankedTrials(null)}
+          />
           <details className="rounded-lg border border-border bg-muted/30 p-4">
             <summary className="cursor-pointer text-sm font-medium">View results JSON</summary>
             <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs">

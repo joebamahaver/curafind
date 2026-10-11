@@ -13,7 +13,7 @@ export default function Home() {
           curafind<span className="-ml-2 text-primary">.</span>
         </Link>
       </header>
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-5 py-12 has-[[data-results-columns]]:max-w-6xl sm:px-8 sm:py-16">
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-5 py-12 has-[[data-results-reader]]:max-w-4xl sm:px-8 sm:py-16">
         <div className="mb-9 text-center">
           <h1 className="font-heading text-4xl leading-[1.12] font-medium tracking-[-0.045em] sm:text-[54px]">Explore research.</h1>
           <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-muted-foreground sm:text-base">Find clinical trials and drug research related to your condition.</p>
