@@ -25,8 +25,16 @@ another intervention; it is `null` if none is identified in the abstract.
 
 Results sort by descending `applicableness`, then descending `efficacy` to break
 ties. `articles` contains all successful evaluations; `topArticles` contains up
-to `DRUG_DISPLAY_LIMIT` studies for the browser. The configurable limits replace
-the initial 25-result defaults in the drug section of `clankereval.md`.
+to `DRUG_DISPLAY_LIMIT` studies for the browser. `ResearchResultsReader` places
+them in the Research tab and displays one study at a time with Previous/Next
+controls. The raw results JSON retains all successful `articles`.
+
+Model selection is shared with the trial evaluators in `src/lib/evaltools.ts`.
+See [Evaluation API examples](./evaluation-api.md) for the current Google and
+optional Cerebras pool and required server credentials. The drug Server Function
+still checks for `GROQ_API_KEY` before retrieval, even when another provider is
+selected. Drug evaluations use `Promise.allSettled`, independently of the trial
+pipeline's batches of four.
 
 If an individual evaluation fails, successful results still display and
 `failedCount` reports how many failed. If every attempted evaluation fails, the
