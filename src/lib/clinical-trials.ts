@@ -93,7 +93,7 @@ export function parseDiagnosisSearch(value: unknown): DiagnosisSearch {
   ) {
     throw new TrialSearchError("Choose a supported recruitment filter.", 400);
   }
-  const pageSize = input.pageSize ?? 100;
+  const pageSize = input.pageSize ?? 10;
   // Smaller than the API maximum to keep interactive responses manageable.
   if (
     typeof pageSize !== "number" ||
