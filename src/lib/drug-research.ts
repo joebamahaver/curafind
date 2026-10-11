@@ -279,3 +279,107 @@ export async function readPubMedArticles(pmids: string[]) {
     };
   });
 }
+
+export async function getDrugCandidates(pmids: string[]) {
+  // Only accept valid, unique PubMed IDs
+  const validIds = [...new Set(pmids)].filter(
+    (id) => /^\d+$/.test(id)
+  );
+
+  if (validIds.length === 0) return [];
+
+  await sleep(400);
+
+  // Fetch PubMed's existing chemical metadata
+  const url = new URL(
+    "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+  );
+
+  url.searchParams.set("db", "pubmed");
+  url.searchParams.set("id", validIds.join(","));
+  url.searchParams.set("retmode", "xml");
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(
+      `Drug candidate extraction failed: HTTP ${response.status}`
+    );
+  }
+
+  const xml = await response.text();
+
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    htmlEntities: true,
+  });
+
+  const data = parser.parse(xml);
+  const records = data.PubmedArticleSet?.PubmedArticle;
+
+  if (!records) return [];
+
+  const articles = Array.isArray(records)
+    ? records
+    : [records];
+
+  // Store each substance and its supporting article IDs
+  const candidates = new Map<string, {
+    name: string;
+    articleIds: Set<string>;
+  }>();
+
+  for (const article of articles) {
+    const citation = article.MedlineCitation;
+
+    const pmid = String(
+      citation?.PMID?.["#text"] ?? citation?.PMID ?? ""
+    );
+
+    if (!/^\d+$/.test(pmid)) continue;
+
+    const rawChemicals =
+      citation?.ChemicalList?.Chemical;
+
+    if (!rawChemicals) continue;
+
+    const chemicals = Array.isArray(rawChemicals)
+      ? rawChemicals
+      : [rawChemicals];
+
+    for (const chemical of chemicals) {
+      const rawName = chemical.NameOfSubstance;
+
+      const name =
+        typeof rawName === "string"
+          ? rawName
+          : rawName?.["#text"];
+
+      if (typeof name !== "string") continue;
+
+      const cleanedName = name.trim();
+
+      if (!cleanedName) continue;
+
+      const key = cleanedName.toLowerCase();
+
+      if (!candidates.has(key)) {
+        candidates.set(key, {
+          name: cleanedName,
+          articleIds: new Set<string>(),
+        });
+      }
+
+      candidates.get(key)!.articleIds.add(pmid);
+    }
+  }
+
+  // Sort by the number of articles mentioning each substance
+  return [...candidates.values()]
+    .map((candidate) => ({
+      name: candidate.name,
+      articleCount: candidate.articleIds.size,
+      articleIds: [...candidate.articleIds],
+    }))
+    .sort((a, b) => b.articleCount - a.articleCount);
+}
