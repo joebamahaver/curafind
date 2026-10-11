@@ -99,7 +99,7 @@ export function ResearchRequest({ onResults }: ResearchRequestProps) {
           />
           <details className="rounded-lg border border-border bg-muted/30 p-4">
             <summary className="cursor-pointer text-sm font-medium">View results JSON</summary>
-            <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs">
+            <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap wrap-break-word text-xs">
               {JSON.stringify({ ...result, rankedTrials }, null, 2)}
             </pre>
           </details>
