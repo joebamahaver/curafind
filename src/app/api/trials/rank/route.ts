@@ -4,7 +4,7 @@ import { evaluationResponse, trialSummarySchema } from "@/lib/evaluation-api";
 const inputSchema = z.object({
   condition: z.string().trim().min(1).max(200),
   prepared_trials: z.object({
-    studies: z.array(trialSummarySchema).refine(
+    trialSums: z.array(trialSummarySchema).refine(
       (trials) => new Set(trials.map(({ id }) => id)).size === trials.length,
       "Trial IDs must be unique.",
     ),

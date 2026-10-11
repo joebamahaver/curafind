@@ -28,7 +28,7 @@ export async function requestTrialSearch(
         : "Search failed. Please retry.",
     );
   }
-  if (!payload || !Array.isArray(payload.studies)) {
+  if (!payload || !Array.isArray(payload.trialSums)) {
     throw new Error(
       "The search service returned an unexpected response. Please retry.",
     );
