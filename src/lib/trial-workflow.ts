@@ -112,7 +112,7 @@ export async function searchTrialsAndMakeQuestions(
 
 
 export async function evaluateEligibilityAndRankTrials(
-  prepared_trials: Pick<PreparedTrialSearchResult, "studies" | "questions">,
+  prepared_trials: Pick<PreparedTrialSearchResult, "trialSums" | "questions">,
   answers: TrialAnswer[],
   condition: string,
   options: { signal?: AbortSignal } = {},
@@ -124,7 +124,7 @@ export async function evaluateEligibilityAndRankTrials(
     answer: answersById.get(id) ?? null,
   }));
   const eligibleTrials: TrialSummary[] = [];
-  for (const trial of prepared_trials.trials) {
+  for (const trial of prepared_trials.trialSums) {
     options.signal?.throwIfAborted();
     const eligible = await evaluateEligibility(questionAnswers, condition, eligibilityText(trial));
     if (eligible) eligibleTrials.push(trial);
@@ -135,7 +135,7 @@ export async function evaluateEligibilityAndRankTrials(
     : [];
   return {
     studies: ranked.map(({ trial, rank, explanation }) => ({ ...trial, rank, explanation })),
-    evaluatedCount: prepared_trials.trials.length,
-    excludedCount: prepared_trials.trials.length - eligibleTrials.length,
+    evaluatedCount: prepared_trials.trialSums.length,
+    excludedCount: prepared_trials.trialSums.length - eligibleTrials.length,
   };
 }
