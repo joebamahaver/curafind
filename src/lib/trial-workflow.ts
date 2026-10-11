@@ -1,8 +1,4 @@
-import type {
-  DiagnosisSearch,
-  TrialSummary,
-  TrialSearchResult,
-} from "./clinical-trials";
+import type { TrialParams, TrialSummary, TrialSearchResult, TrialAnswer, FinalTrialResult } from "./trial-evaluation-types"
 import { searchTrialsByDiagnosis, TrialSearchError } from "./clinical-trials";
 import {
   evaluateTrial,
@@ -10,23 +6,6 @@ import {
   evaluateEligibility,
   rankTrials,
 } from "./evaltools";
-
-export interface RankedTrialSummary extends TrialSummary {
-  rank: number;
-  explanation: string;
-}
-
-export type TrialAnswer = {
-  id: string;
-  question: string;
-  answer: string | number | boolean | null;
-};
-
-export type FinalTrialResult = {
-  studies: RankedTrialSummary[];
-  evaluatedCount: number;
-  excludedCount: number;
-};
 
 function eligibilityText(trial: TrialSummary): string {
   return [
@@ -39,7 +18,7 @@ function eligibilityText(trial: TrialSummary): string {
 }
 
 export interface PreparedTrialSearchResult extends TrialSearchResult {
-  studies: TrialSummary[];
+  trialSums: TrialSummary[];
   questions: Awaited<ReturnType<typeof criterionFinder>>["questions"];
 }
 
@@ -55,7 +34,7 @@ function readTrialLimit(name: string, fallback: number, minimum: number): number
 
 /** Score and shortlist trials from one search page by applicability. */
 export async function searchTrialsAndMakeQuestions(
-  input: DiagnosisSearch,
+  input: TrialParams,
   options: { fetcher?: typeof fetch; signal?: AbortSignal } = {},
 ): Promise<PreparedTrialSearchResult> {
   const searchLimit = readTrialLimit("TRIAL_SEARCH_LIMIT", 10, 10);
@@ -69,9 +48,9 @@ export async function searchTrialsAndMakeQuestions(
 
   // Each call gets a fresh agent and the next model in the existing pool.
   // Finish a batch before starting another to keep at most four evaluations active.
-  for (let start = 0; start < trials.studies.length; start += concurrency) {
+  for (let start = 0; start < trials.trialSums.length; start += concurrency) {
     options.signal?.throwIfAborted();
-    const batch = trials.studies.slice(start, start + concurrency);
+    const batch = trials.trialSums.slice(start, start + concurrency);
     const evaluated = await Promise.all(batch.map(async trial => {
       const result = await evaluateTrial(
         trial.summary,
@@ -103,7 +82,7 @@ export async function searchTrialsAndMakeQuestions(
   return {
     ...trials,
     questions,
-    studies: applicable_trials.map((trial, index) => ({
+    trialSums: applicable_trials.map((trial, index) => ({
       ...trial,
       rank: index + 1,
       explanation: "",
@@ -113,7 +92,7 @@ export async function searchTrialsAndMakeQuestions(
 
 
 export async function evaluateEligibilityAndRankTrials(
-  prepared_trials: Pick<PreparedTrialSearchResult, "studies" | "questions">,
+  prepared_trials: Pick<PreparedTrialSearchResult, "trialSums" | "questions">,
   answers: TrialAnswer[],
   condition: string,
   options: { signal?: AbortSignal } = {},
@@ -125,7 +104,7 @@ export async function evaluateEligibilityAndRankTrials(
     answer: answersById.get(id) ?? null,
   }));
   const eligibleTrials: TrialSummary[] = [];
-  for (const trial of prepared_trials.studies) {
+  for (const trial of prepared_trials.trialSums) {
     options.signal?.throwIfAborted();
     const eligible = await evaluateEligibility(questionAnswers, condition, eligibilityText(trial));
     if (eligible) eligibleTrials.push(trial);
@@ -136,7 +115,7 @@ export async function evaluateEligibilityAndRankTrials(
     : [];
   return {
     studies: ranked.map(({ trial, rank, explanation }) => ({ ...trial, rank, explanation })),
-    evaluatedCount: prepared_trials.studies.length,
-    excludedCount: prepared_trials.studies.length - eligibleTrials.length,
+    evaluatedCount: prepared_trials.trialSums.length,
+    excludedCount: prepared_trials.trialSums.length - eligibleTrials.length,
   };
 }

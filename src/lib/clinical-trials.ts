@@ -1,60 +1,7 @@
 /** Framework-independent client for the ClinicalTrials.gov v2 studies API. */
 import { trialLocationSchema } from "./trial-location";
 
-export interface DiagnosisSearch {
-  diagnosis: string;
-  zipCode?: string;
-  travelDistanceMiles?: number;
-  /** Stage/subtype text search, not an eligibility check. */
-  keywords?: string;
-  recruitment?: "recruiting" | "recruiting-or-upcoming";
-  pageSize?: number;
-  /** Opaque cursor; reuse the original search options for subsequent pages. */
-  pageToken?: string;
-}
-
-export interface TrialSummary {
-  id: string;
-  title: string;
-  url: string;
-  status: string;
-  summary: string;
-  conditions: string[];
-  phases: string[];
-  studyType: string;
-  sponsor: string;
-  lastUpdated: string;
-  interventions: { name: string; type: string }[];
-  eligibility: {
-    minimumAge: string;
-    maximumAge: string;
-    sex: string;
-    criteria: string;
-  };
-  locations: {
-    facility: string;
-    city: string;
-    state: string;
-    country: string;
-    status: string;
-  }[];
-  applicableness: number;
-}
-
-export interface TrialSearchResult {
-  studies: TrialSummary[];
-  totalCount?: number;
-  nextPageToken?: string;
-  requestUrl: string;
-  locationFilter?: {
-    zipCode: string;
-    travelDistanceMiles: number;
-    latitude: number;
-    longitude: number;
-    city: string;
-    state: string;
-  };
-}
+import type { TrialParams, TrialSummary, TrialSearchResult } from "./trial-evaluation-types"
 
 export class TrialSearchError extends Error {
   status: number;
@@ -81,7 +28,7 @@ function strings(value: unknown): string[] {
 }
 
 /** Runtime validation is also used at the HTTP boundary. Defaults include recruiting and upcoming studies. */
-export function parseDiagnosisSearch(value: unknown): DiagnosisSearch {
+export function parseDiagnosisSearch(value: unknown): TrialParams {
   const input = record(value);
   const diagnosis = text(input.diagnosis).trim();
   if (!diagnosis || diagnosis.length > 500)
@@ -89,15 +36,7 @@ export function parseDiagnosisSearch(value: unknown): DiagnosisSearch {
       "Enter a diagnosis between 1 and 500 characters.",
       400,
     );
-  if (
-    input.keywords !== undefined &&
-    (typeof input.keywords !== "string" || input.keywords.length > 500)
-  ) {
-    throw new TrialSearchError(
-      "Additional keywords must be text, up to 500 characters.",
-      400,
-    );
-  }
+
   const recruitment = input.recruitment ?? "recruiting-or-upcoming";
   if (
     recruitment !== "recruiting" &&
@@ -135,14 +74,13 @@ export function parseDiagnosisSearch(value: unknown): DiagnosisSearch {
   return {
     diagnosis,
     ...location,
-    keywords: text(input.keywords).trim(),
     recruitment,
     pageSize,
     pageToken: input.pageToken as string | undefined,
   };
 }
 
-export function buildClinicalTrialsUrl(input: DiagnosisSearch, coordinates?: { latitude: number; longitude: number }): URL {
+export function buildClinicalTrialsUrl(input: TrialParams, coordinates?: { latitude: number; longitude: number }): URL {
   const search = parseDiagnosisSearch(input);
   const url = new URL("https://clinicaltrials.gov/api/v2/studies");
   url.searchParams.set("format", "json");
@@ -154,7 +92,6 @@ export function buildClinicalTrialsUrl(input: DiagnosisSearch, coordinates?: { l
     }
     url.searchParams.set("filter.geo", `distance(${coordinates.latitude},${coordinates.longitude},${search.travelDistanceMiles}mi)`);
   }
-  if (search.keywords) url.searchParams.set("query.term", search.keywords);
   url.searchParams.set(
     "filter.overallStatus",
     search.recruitment === "recruiting"
@@ -254,7 +191,7 @@ async function resolveZipCode(zipCode: string, options: { fetcher?: typeof fetch
 
 /** Inject fetch for deterministic tests; no API key or Next.js dependency required. */
 export async function searchTrialsByDiagnosis(
-  input: DiagnosisSearch,
+  input: TrialParams,
   options: { fetcher?: typeof fetch; signal?: AbortSignal } = {},
 ): Promise<TrialSearchResult> {
   const search = parseDiagnosisSearch(input);
@@ -302,7 +239,7 @@ export async function searchTrialsByDiagnosis(
       );
     }
     return {
-      studies: payload.studies.map(normalizeStudy),
+      trialSums: payload.studies.map(normalizeStudy),
       totalCount: payload.totalCount as number | undefined,
       nextPageToken: payload.nextPageToken as string | undefined,
       requestUrl: url.toString(),

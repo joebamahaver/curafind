@@ -184,12 +184,12 @@ export function RequestForm({
               {completedContent}
             </CardContent>
           ) : (
-          <CardContent aria-busy={isLoading} className="flex min-h-[397px] flex-col items-center justify-center px-6 py-10 text-center sm:px-8">
+          <CardContent aria-busy={isLoading} className="flex min-h-99.25 flex-col items-center justify-center px-6 py-10 text-center sm:px-8">
             <div className="relative mb-7 flex size-24 items-center justify-center" aria-hidden="true">
               {isLoading ? (
                 <>
                   <span className="absolute inset-0 rounded-full border border-primary/10" />
-                  <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary/70 motion-safe:animate-spin motion-safe:[animation-duration:2s]" />
+                  <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary/70 motion-safe:animate-spin motion-safe:animation-duration-[2s]" />
                   <span className="absolute inset-3 rounded-full border border-primary/15 motion-safe:animate-pulse" />
                   <span className="flex size-14 items-center justify-center rounded-full bg-primary/7 text-primary"><Sparkles className="size-6 motion-safe:animate-pulse" /></span>
                 </>
@@ -203,7 +203,7 @@ export function RequestForm({
             <p role={error ? "alert" : "status"} aria-live="polite" className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">{isLoading ? "Retrieving and processing your search request…" : error || "Your search request has finished processing."}</p>
             <div className="mt-6 w-full rounded-lg border border-border bg-[#faf9f6] px-4 py-3 text-left">
               <span className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase">Your input</span>
-              <p className="mt-1 text-sm break-words">{submitted.condition}</p>
+              <p className="mt-1 text-sm wrap-break-word">{submitted.condition}</p>
               {submitted.clinicalTrials && <p className="mt-2 text-xs text-muted-foreground">Within {submitted.travelDistanceMiles} miles of ZIP {submitted.zipCode}</p>}
               <p className="mt-2 text-xs text-muted-foreground">{[
                 submitted.clinicalTrials && "Clinical trials",

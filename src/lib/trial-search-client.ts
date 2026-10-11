@@ -1,9 +1,9 @@
-import type { DiagnosisSearch } from "./clinical-trials";
+import type { TrialParams } from "./trial-evaluation-types";
 import type { PreparedTrialSearchResult } from "./trial-workflow";
 
 /** Browser adapter shared by the patient flow **/
 export async function requestTrialSearch(
-  input: DiagnosisSearch,
+  input: TrialParams,
   signal?: AbortSignal,
   fetcher: typeof fetch = fetch,
 ): Promise<PreparedTrialSearchResult> {
@@ -28,7 +28,7 @@ export async function requestTrialSearch(
         : "Search failed. Please retry.",
     );
   }
-  if (!payload || !Array.isArray(payload.studies)) {
+  if (!payload || !Array.isArray(payload.trialSums)) {
     throw new Error(
       "The search service returned an unexpected response. Please retry.",
     );

@@ -1,11 +1,11 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
-import type { PreparedTrialSearchResult, TrialAnswer } from "@/lib/trial-workflow";
+import type { PreparedTrialSearchResult } from "@/lib/trial-workflow";
+import type { TrialAnswer } from "@/lib/trial-evaluation-types"
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-export type { TrialAnswer } from "@/lib/trial-workflow";
 
 type TrialQuestionsProps = {
   questions: PreparedTrialSearchResult["questions"];
