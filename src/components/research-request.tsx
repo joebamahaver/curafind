@@ -94,24 +94,35 @@ export function ResearchRequest({ onResults }: ResearchRequestProps) {
           {result.errors?.drugResearch && (
             <p role="alert" className="text-sm text-destructive">Drug research: {result.errors.drugResearch}</p>
           )}
-          {result.clinicalTrials && (
-            result.clinicalTrials.studies.length > 0
-              ? <>
-                <div hidden={rankedTrials !== null}>
-                <TrialQuestions
-                  key={JSON.stringify(result.clinicalTrials.questions.map(({ id }) => id))}
-                  questions={result.clinicalTrials.questions}
-                  onSubmit={submitTrialAnswers}
-                />
-                </div>
-                {rankedTrials && <>
-                  <TrialResearchResults result={rankedTrials} />
-                  <Button type="button" variant="outline" onClick={() => setRankedTrials(null)}>Edit trial answers</Button>
-                </>}
-                </>
-              : <p className="text-sm text-muted-foreground">No clinical trials found for this search.</p>
-          )}
-          {result.drugResearch && <DrugResearchResults result={result.drugResearch} />}
+          <div
+            data-results-columns={result.clinicalTrials && result.drugResearch ? true : undefined}
+            className={`grid items-start gap-8 ${result.clinicalTrials && result.drugResearch ? "lg:grid-cols-2" : ""}`}
+          >
+            {result.clinicalTrials && (
+              <div className="min-w-0 space-y-4 break-words">
+                {result.clinicalTrials.studies.length > 0
+                  ? <>
+                    <div hidden={rankedTrials !== null}>
+                      <TrialQuestions
+                        key={JSON.stringify(result.clinicalTrials.questions.map(({ id }) => id))}
+                        questions={result.clinicalTrials.questions}
+                        onSubmit={submitTrialAnswers}
+                      />
+                    </div>
+                    {rankedTrials && <>
+                      <TrialResearchResults result={rankedTrials} />
+                      <Button type="button" variant="outline" onClick={() => setRankedTrials(null)}>Edit trial answers</Button>
+                    </>}
+                    </>
+                  : <p className="text-sm text-muted-foreground">No clinical trials found for this search.</p>}
+              </div>
+            )}
+            {result.drugResearch && (
+              <div className="min-w-0 break-words">
+                <DrugResearchResults result={result.drugResearch} />
+              </div>
+            )}
+          </div>
           <details className="rounded-lg border border-border bg-muted/30 p-4">
             <summary className="cursor-pointer text-sm font-medium">View results JSON</summary>
             <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs">
