@@ -2,7 +2,7 @@
 
 This is a project for HackMidwest 2026: finding clinical trials and off label drug therapies for rare conditions. Given a patient with a diagnosis, they may be interested in more options such a clinical trial or a very new drug. However, these are very hard to find with thousands of clinical trials currently going on and papers constantly being published. CuraFind is a tool to help find *relevant* trials that one could qualify for as well as find new drugs that could possibly work.
 
-None of the claims made by this are to be taken as fact or replace the advice of a medical professional. It *is* supposed to help the search to get better though.
+None of the claims made by this are to be taken as fact or replace the advice of a medical professional. It *is* supposed to help the search to get better though. People that are willing to do a clinical trial or try a new treatment shouldn't need to go through the daunting effort of finding a compatible one.
 
 ## Tech Stack/Architecture
 
