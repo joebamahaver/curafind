@@ -31,8 +31,8 @@ const goog3=new GoogleModel({modelId:"gemini-3.1-flash-lite"})
 const models: Model[] = [groq];
 if (cerebras) models.push(cerebras);
 let cursor = 0;
-models.push(goog1)
-models.push(goog2)
+// models.push(goog1)
+// models.push(goog2)
 
 function getModel(): Model {
   const selected = models[cursor];
