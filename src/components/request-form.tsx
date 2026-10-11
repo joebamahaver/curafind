@@ -102,7 +102,9 @@ export function RequestForm({
                 <FieldLabel htmlFor={id} className="text-sm font-medium">{label}</FieldLabel>
                 <span className="text-[11px] tabular-nums text-muted-foreground" aria-hidden="true">{formData.condition.length}/200</span>
               </div>
+              {/* DuckDuckGo adds data-ddg-inputtype before hydration to these three inputs. */}
               <Input ref={inputRef} id={id} name="condition" value={formData.condition}
+                suppressHydrationWarning
                 onValueChange={setCondition}
                 placeholder={placeholder} required maxLength={200}
                 aria-describedby={`${id}-hint`}
@@ -147,6 +149,7 @@ export function RequestForm({
                   <Field className="gap-2">
                     <FieldLabel htmlFor={`${id}-zip`}>U.S. ZIP code</FieldLabel>
                     <Input id={`${id}-zip`} name="zipCode" inputMode="numeric" autoComplete="postal-code"
+                      suppressHydrationWarning
                       value={formData.zipCode} required pattern="[0-9]{5}" maxLength={5} placeholder="64108"
                       onValueChange={(zipCode) => setFormData((current) => ({ ...current, zipCode }))}
                       className="h-12 rounded-lg border-border" />
@@ -154,6 +157,7 @@ export function RequestForm({
                   <Field className="gap-2">
                     <FieldLabel htmlFor={`${id}-distance`}>Maximum travel (miles)</FieldLabel>
                     <Input id={`${id}-distance`} name="travelDistanceMiles" type="number" min={1} max={10000} step="any"
+                      suppressHydrationWarning
                       value={formData.travelDistanceMiles ?? ""} required placeholder="50"
                       onChange={(event) => {
                         const miles = event.currentTarget.valueAsNumber;

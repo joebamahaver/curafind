@@ -17,6 +17,16 @@ const groq = new OpenAIModel({
 const cerebras = process.env.CEREBRAS_API_KEY
   ? new OpenAIModel({
       api: "chat",
+      modelId: "gpt-oss-120b",
+      apiKey: process.env.CEREBRAS_API_KEY,
+      clientConfig: { baseURL: "https://api.cerebras.ai/v1" },
+      params: { reasoning_effort: "low", parallel_tool_calls: false },
+    })
+  : null;
+
+  const cerebras2 = process.env.CEREBRAS_API_KEY
+  ? new OpenAIModel({
+      api: "chat",
       modelId: "qwen-3.8-27b",
       apiKey: process.env.CEREBRAS_API_KEY,
       clientConfig: { baseURL: "https://api.cerebras.ai/v1" },
@@ -29,8 +39,10 @@ const goog2=new GoogleModel({modelId:"gemma-4-31b-it"})
 const goog3=new GoogleModel({modelId:"gemini-3.1-flash-lite"})
 
 const models: Model[] = [groq];
-if (cerebras) models.push(cerebras);
+//if (cerebras) models.push(cerebras);
+if (cerebras2) models.push(cerebras2);
 let cursor = 0;
+models.push(goog3)
 // models.push(goog1)
 // models.push(goog2)
 
