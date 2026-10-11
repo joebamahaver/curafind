@@ -7,6 +7,7 @@ import {
   requestResearchSearch,
   type ResearchSearchResult,
 } from "@/lib/research-search-client";
+import { TrialQuestions } from "@/components/trial-questions";
 
 type ResearchRequestProps = {
   onResults?: (
@@ -57,10 +58,13 @@ export function ResearchRequest({ onResults }: ResearchRequestProps) {
           {result.errors?.drugResearch && (
             <p role="alert" className="text-sm text-destructive">Drug research: {result.errors.drugResearch}</p>
           )}
-          {result.clinicalTrials?.nextPageToken && (
-            <p className="text-xs text-muted-foreground">
-              More clinical trial results are available beyond this page.
-            </p>
+          {result.clinicalTrials && (
+            result.clinicalTrials.studies.length > 0
+              ? <TrialQuestions
+                  key={JSON.stringify(result.clinicalTrials.questions.map(({ id }) => id))}
+                  questions={result.clinicalTrials.questions}
+                />
+              : <p className="text-sm text-muted-foreground">No clinical trials found for this search.</p>
           )}
           {result.drugResearch && <DrugResearchResults result={result.drugResearch} />}
           <details className="rounded-lg border border-border bg-muted/30 p-4">

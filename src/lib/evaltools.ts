@@ -75,7 +75,6 @@ Evaluate the supplied study abstract for the supplied condition.
 const criterionQuestions = z.object({
     questions: z.array(
       z.object({
-        id: z.number(),
         question: z.string(),
         type: z.enum(["number", "yes-no", "string"]),
       }),
