@@ -2,7 +2,8 @@ import { ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DrugResearchResult } from "@/lib/drug-evaluation-types";
 
-export function DrugResearchResults({ result }: { result: DrugResearchResult }) {
+export function DrugResearchResults({ result, activeIndex }: { result: DrugResearchResult; activeIndex?: number }) {
+  const articles = activeIndex === undefined ? result.topArticles : result.topArticles.slice(activeIndex, activeIndex + 1);
   return (
     <section aria-label="Top drug research results" className="space-y-4">
       <div>
@@ -20,10 +21,10 @@ export function DrugResearchResults({ result }: { result: DrugResearchResult }) 
       {result.topArticles.length === 0 && (
         <p className="text-sm text-muted-foreground">No studies with usable abstracts were found for this condition.</p>
       )}
-      {result.topArticles.map((article, index) => (
+      {articles.map((article, index) => (
         <Card key={article.id} className="rounded-xl border border-border bg-white shadow-none ring-0">
           <CardHeader>
-            <p className="text-xs text-muted-foreground">Result {index + 1}</p>
+            <p className="text-xs text-muted-foreground">Result {(activeIndex ?? 0) + index + 1}</p>
             <CardTitle className="text-lg leading-7">
               <a href={article.url} target="_blank" rel="noreferrer" className="hover:text-primary hover:underline">
                 {article.title}<ArrowUpRight aria-hidden="true" className="ml-1 inline size-4" />
@@ -34,7 +35,7 @@ export function DrugResearchResults({ result }: { result: DrugResearchResult }) 
           <CardContent className="space-y-4">
             <p className="whitespace-pre-wrap text-sm leading-7 text-foreground/85">{article.abstract}</p>
             <p className="text-xs text-muted-foreground">
-              <span className="font-medium">Drug:</span> {article.drugName ?? "Not identified in the abstract"}
+              <span className="font-medium">Treatment:</span> {article.treatment ?? "Not identified in the abstract"}
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg bg-primary/5 p-3">
