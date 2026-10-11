@@ -67,7 +67,7 @@ export function ResearchResultsReader({ result, rankedTrials, onSubmitAnswers, o
       </div>
       <div className="rounded-r-2xl rounded-l-md border border-border border-l-4 border-l-primary/25 bg-[#fffdf8] p-4 shadow-[4px_4px_0_0_var(--muted),8px_8px_0_0_var(--border)] sm:p-6">
         {result.clinicalTrials && (
-          <TabsContent value="trials" keepMounted className="space-y-4 break-words">
+          <TabsContent value="trials" keepMounted className="space-y-4 wrap-break-word">
             {result.clinicalTrials.trialSums.length > 0 ? (
               <>
                 <div hidden={rankedTrials !== null}>
@@ -90,7 +90,7 @@ export function ResearchResultsReader({ result, rankedTrials, onSubmitAnswers, o
           </TabsContent>
         )}
         {drugResearch && (
-          <TabsContent value="research" keepMounted className="break-words">
+          <TabsContent value="research" keepMounted className="wrap-break-word">
             <ResultPages count={drugResearch.topArticles.length} label="Study">
               {(index) => <DrugResearchResults result={drugResearch} activeIndex={index} />}
             </ResultPages>
