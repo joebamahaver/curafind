@@ -1,7 +1,4 @@
-import type {
-  TrialSearchResult,
-} from "./clinical-trials";
-import type { TrialParams, TrialSummary } from "./trial-evaluation-types"
+import type { TrialParams, TrialSummary, TrialSearchResult } from "./trial-evaluation-types"
 import { searchTrialsByDiagnosis, TrialSearchError } from "./clinical-trials";
 import {
   evaluateTrial,

@@ -37,3 +37,18 @@ export interface TrialSummary {
   }[];
   applicableness: number;
 }
+
+export interface TrialSearchResult {
+  trialSums: TrialSummary[];
+  totalCount?: number;
+  nextPageToken?: string;
+  requestUrl: string;
+  locationFilter?: {
+    zipCode: string;
+    travelDistanceMiles: number;
+    latitude: number;
+    longitude: number;
+    city: string;
+    state: string;
+  };
+}

@@ -1,25 +1,7 @@
 /** Framework-independent client for the ClinicalTrials.gov v2 studies API. */
 import { trialLocationSchema } from "./trial-location";
 
-import type { TrialParams, TrialSummary } from "./trial-evaluation-types"
-
-
-
-
-export interface TrialSearchResult {
-  trialSums: TrialSummary[];
-  totalCount?: number;
-  nextPageToken?: string;
-  requestUrl: string;
-  locationFilter?: {
-    zipCode: string;
-    travelDistanceMiles: number;
-    latitude: number;
-    longitude: number;
-    city: string;
-    state: string;
-  };
-}
+import type { TrialParams, TrialSummary, TrialSearchResult } from "./trial-evaluation-types"
 
 export class TrialSearchError extends Error {
   status: number;

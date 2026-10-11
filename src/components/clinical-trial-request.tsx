@@ -6,8 +6,7 @@ import { RequestForm, type SearchRequest } from "@/components/request-form";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { requestTrialSearch } from "@/lib/trial-search-client";
-import type { TrialSearchResult } from "@/lib/clinical-trials";
-import type { TrialParams } from "@/lib/trial-evaluation-types";
+import type { TrialParams, TrialSearchResult } from "@/lib/trial-evaluation-types";
 
 const readable = (value: string) => value.replaceAll("_", " ").toLowerCase();
 
