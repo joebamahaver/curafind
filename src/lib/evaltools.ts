@@ -21,15 +21,17 @@ export async function evaluateTrial(
   summary: string,
   title: string,
   condition: string,
+  trial_conditions: string[],
 ) {
   const evaluator = new Agent({
     model,
     systemPrompt: `${vicort}\nEvaluate the supplied trial.`,
     structuredOutputSchema: scoreSchema,
   });
+  const trial_conditions_str = "Trial Conditions" + trial_conditions;
 
   const result = await evaluator.invoke(
-    JSON.stringify({ summary, title, condition }),
+    JSON.stringify({ summary, title, condition, trial_conditions_str }),
   );
 
   return scoreSchema.parse(result.structuredOutput);
@@ -88,7 +90,10 @@ export async function criterionFinder(
         systemPrompt: `
     Generate questions for the user based on the supplied eligibility criteria.
     
-    - Ask clear, simple questions.
+    - Ask clear, simple questions. 
+    - Ensure questions can be answered without a doctor present.
+    - Ensure questions are something a child could reasonably know and answer.
+    - Ensure questions don't contain specific physical nor chemical measurements a patient would not know.
     - Combine duplicate questions.
     - Only ask about requirements present in the criteria.
     - Classify each question as number, yes-no, or string.

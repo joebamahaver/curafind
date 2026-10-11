@@ -34,6 +34,7 @@ export interface TrialSummary {
     country: string;
     status: string;
   }[];
+  applicableness: number;
 }
 
 export interface TrialSearchResult {
@@ -97,11 +98,11 @@ export function parseDiagnosisSearch(value: unknown): DiagnosisSearch {
   if (
     typeof pageSize !== "number" ||
     !Number.isInteger(pageSize) ||
-    pageSize < 1 ||
-    pageSize > 100
+    pageSize < 10 ||
+    pageSize > 1000
   ) {
     throw new TrialSearchError(
-      "Page size must be a whole number from 1 to 100.",
+      "Page size must be a whole number from 10 to 1000.",
       400,
     );
   }
@@ -194,6 +195,7 @@ export function normalizeStudy(value: unknown): TrialSummary {
         };
       },
     ),
+    applicableness: 0, // start out as 0 during parsing
   };
 }
 
@@ -261,3 +263,4 @@ export async function searchTrialsByDiagnosis(
     );
   }
 }
+

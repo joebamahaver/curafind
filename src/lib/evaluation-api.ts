@@ -19,9 +19,7 @@ export const trialSummarySchema = z.looseObject({
   studyType: z.string(),
   sponsor: z.string(),
   lastUpdated: z.string(),
-  interventions: z.array(
-    z.looseObject({ name: z.string(), type: z.string() }),
-  ),
+  interventions: z.array(z.looseObject({ name: z.string(), type: z.string() })),
   eligibility: z.looseObject({
     minimumAge: z.string(),
     maximumAge: z.string(),
@@ -37,6 +35,7 @@ export const trialSummarySchema = z.looseObject({
       status: z.string(),
     }),
   ),
+  applicableness: z.number().min(0).max(100),
 });
 
 export async function evaluationResponse<T>(
