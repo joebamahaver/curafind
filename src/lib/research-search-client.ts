@@ -1,75 +1,21 @@
-import type { SearchRequest } from "@/components/request-form";
-import type { PreparedTrialSearchResult } from "./trial-workflow";
-import { requestTrialSearch } from "./trial-search-client";
-import { searchAndEvaluateDrugs } from "@/app/actions/drug-research";
-import type { DrugResearchResult } from "./drug-evaluation-types";
-import { trialLocationSchema } from "./trial-location";
+import { searchMedicalResearch, answerMedicalQuestions } from "@/app/actions/medical-research";
+import { medicalRequestSchema, type MedicalResearchResult, type TrialAnswer } from "./medical-research-types";
 
-export type { ResearchArticle } from "./drug-evaluation-types";
+export type ResearchSearchResult = MedicalResearchResult;
 
-export type ResearchSearchResult = {
-  clinicalTrials: PreparedTrialSearchResult | null;
-  drugResearch: DrugResearchResult | null;
-  errors?: { clinicalTrials?: string; drugResearch?: string };
-};
-
-export async function requestDrugResearch(
-  condition: string,
-  signal?: AbortSignal,
-): Promise<NonNullable<ResearchSearchResult["drugResearch"]>> {
+export async function requestResearchSearch(input: unknown, signal?: AbortSignal): Promise<MedicalResearchResult> {
   signal?.throwIfAborted();
-  // AbortSignal stays in the browser; Server Functions accept serializable inputs.
-  const result = await searchAndEvaluateDrugs(condition);
+  const request = medicalRequestSchema.parse(input);
+  const result = await searchMedicalResearch(request);
   signal?.throwIfAborted();
   if (!result.success) throw new Error(result.error);
   return result.data;
 }
 
-/** Keep the clinical trial and evaluated drug results in separate JSON fields. */
-export async function requestResearchSearch(
-  request: SearchRequest,
-  signal?: AbortSignal,
-  fetcher: typeof fetch = fetch,
-): Promise<ResearchSearchResult> {
+export async function requestMedicalAnswers(sessionId: string, answers: TrialAnswer[], signal?: AbortSignal): Promise<MedicalResearchResult> {
   signal?.throwIfAborted();
-  const condition = request.condition.trim();
-  if (!condition) throw new Error("Enter a condition.");
-  if (!request.clinicalTrials && !request.offLabelDrugsOrSupplements) {
-    throw new Error("Select at least one search option.");
-  }
-  const location = request.clinicalTrials ? trialLocationSchema.safeParse(request) : null;
-  if (location && !location.success) throw new Error(location.error.issues[0].message);
-
-  const [trialResult, drugResult] = await Promise.allSettled([
-    request.clinicalTrials
-      ? requestTrialSearch({
-          diagnosis: condition,
-          recruitment: "recruiting-or-upcoming",
-          ...(location?.success ? location.data : {}),
-        }, signal, fetcher)
-      : null,
-    request.offLabelDrugsOrSupplements
-      ? requestDrugResearch(condition, signal)
-      : null,
-  ]);
+  const result = await answerMedicalQuestions({ sessionId, answers });
   signal?.throwIfAborted();
-  const clinicalTrials = trialResult.status === "fulfilled" ? trialResult.value : null;
-  const drugResearch = drugResult.status === "fulfilled" ? drugResult.value : null;
-  const errors: NonNullable<ResearchSearchResult["errors"]> = {};
-  if (trialResult.status === "rejected") {
-    errors.clinicalTrials = trialResult.reason instanceof Error
-      ? trialResult.reason.message : "Clinical trial search failed.";
-  }
-  if (drugResult.status === "rejected") {
-    errors.drugResearch = drugResult.reason instanceof Error
-      ? drugResult.reason.message : "Drug research search failed.";
-  }
-  if (!clinicalTrials && !drugResearch) {
-    throw new Error(Object.values(errors).join(" ") || "Search failed. Please retry.");
-  }
-  return {
-    clinicalTrials,
-    drugResearch,
-    ...(Object.keys(errors).length > 0 ? { errors } : {}),
-  };
+  if (!result.success) throw new Error(result.error);
+  return result.data;
 }

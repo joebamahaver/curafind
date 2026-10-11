@@ -1,14 +1,14 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
-import type { PreparedTrialSearchResult, TrialAnswer } from "@/lib/trial-workflow";
+import type { EligibilityQuestion, TrialAnswer } from "@/lib/medical-research-types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-export type { TrialAnswer } from "@/lib/trial-workflow";
+export type { TrialAnswer } from "@/lib/medical-research-types";
 
 type TrialQuestionsProps = {
-  questions: PreparedTrialSearchResult["questions"];
+  questions: EligibilityQuestion[];
   onSubmit?: (answers: TrialAnswer[]) => Promise<void> | void;
 };
 
@@ -38,9 +38,9 @@ export function TrialQuestions({ questions, onSubmit }: TrialQuestionsProps) {
           answer: answers[id] ?? null,
         })),
       );
-    } catch {
+    } catch (error) {
       setError(
-        "Could not submit your answers. Please try again. Your answers have been kept.",
+        error instanceof Error ? error.message : "Could not submit your answers. Please try again. Your answers have been kept.",
       );
     } finally {
       setSubmitting(false);
@@ -132,6 +132,7 @@ export function TrialQuestions({ questions, onSubmit }: TrialQuestionsProps) {
                     {question.type === "number" ? (
                       <Input
                         id={inputId}
+                        suppressHydrationWarning
                         type="number"
                         step="any"
                         value={typeof answer === "number" ? answer : ""}
@@ -147,6 +148,7 @@ export function TrialQuestions({ questions, onSubmit }: TrialQuestionsProps) {
                     ) : (
                       <textarea
                         id={inputId}
+                        suppressHydrationWarning
                         rows={3}
                         value={typeof answer === "string" ? answer : ""}
                         onChange={(event) =>

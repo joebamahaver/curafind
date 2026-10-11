@@ -1,0 +1,5 @@
+*
+!docker/
+!docker/medical-mcp/
+!docker/medical-mcp/Dockerfile
+!docker/medical-mcp/*.mjs
