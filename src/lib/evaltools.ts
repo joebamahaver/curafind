@@ -33,7 +33,6 @@ if (cerebras) models.push(cerebras);
 let cursor = 0;
 models.push(goog1)
 models.push(goog2)
-models.push(goog3)
 
 function getModel(): Model {
   const selected = models[cursor];
@@ -115,7 +114,7 @@ export async function criterionFinder(
     condition: string,
   ) {
     const evaluator = new Agent({
-        model: getModel(),
+        model: goog3,
         systemPrompt: `
     Generate questions for the user based on the supplied eligibility criteria.
     
