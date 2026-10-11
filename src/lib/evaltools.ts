@@ -21,15 +21,17 @@ export async function evaluateTrial(
   summary: string,
   title: string,
   condition: string,
+  trial_conditions: string[],
 ) {
   const evaluator = new Agent({
     model,
     systemPrompt: `${vicort}\nEvaluate the supplied trial.`,
     structuredOutputSchema: scoreSchema,
   });
+  const trial_conditions_str = "Trial Conditions" + trial_conditions;
 
   const result = await evaluator.invoke(
-    JSON.stringify({ summary, title, condition }),
+    JSON.stringify({ summary, title, condition, trial_conditions_str }),
   );
 
   return scoreSchema.parse(result.structuredOutput);
