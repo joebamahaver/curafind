@@ -1,11 +1,22 @@
 # Evaluation API examples
 
-All endpoints accept JSON via POST and use the server's `GEMINI_API_KEY`.
+All endpoints accept JSON via POST and use Groq's `openai/gpt-oss-20b` through
+Strands' OpenAI-compatible adapter. Add your Groq key to `.env`:
+
+```dotenv
+GROQ_API_KEY=your_groq_api_key
+```
+
+The key stays on the server. Each evaluation creates a fresh agent, so previous
+calls are not part of its conversation. The standalone `src/lib/strands.ts`
+example uses the same provider and key.
+
 Run these examples after you start your development server yourself.
 
 These routes return JSON after the agent finishes, so curl can be silent while
-Gemini processes the request. The evaluators use `LOW` thinking effort to reduce
-latency, but requests can still take tens of seconds. Use `curl -i --max-time 120`
+Groq processes the request. The evaluators use `reasoning_effort: "low"` to reduce
+latency. Actual response times depend on input size and provider limits.
+Use `curl -i --max-time 120`
 to show response headers and allow up to two minutes for a test request.
 
 | Endpoint | Request fields | Response |
