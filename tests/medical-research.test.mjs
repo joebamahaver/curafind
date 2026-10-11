@@ -60,7 +60,7 @@ function workflow({ onResume, failResume = false, repeatSearch = false, failClea
   const calls = [];
   const models = [];
   let disconnects = 0;
-  class ScriptedGoogleModel extends Model {
+  class ScriptedCerebrasModel extends Model {
     constructor(config) { super(); this.config = config; this.turns = []; models.push(this); }
     getConfig() { return this.config; }
     updateConfig(config) { this.config = { ...this.config, ...config }; }
@@ -114,7 +114,7 @@ function workflow({ onResume, failResume = false, repeatSearch = false, failClea
     }
   }
   const exports = load("src/lib/medical-research.ts", {
-    "@strands-agents/sdk/models/google": { GoogleModel: ScriptedGoogleModel },
+    "@strands-agents/sdk/models/openai": { OpenAIModel: ScriptedCerebrasModel },
     "./medical-mcp.ts": {
       connectMedicalMcp: async () => ({
         tools: sourceRecords.map(source => ({
@@ -138,13 +138,13 @@ function workflow({ onResume, failResume = false, repeatSearch = false, failClea
 }
 
 async function env(run) {
-  const key = process.env.GEMINI_API_KEY;
-  process.env.GEMINI_API_KEY = "mock-key";
+  const key = process.env.CEREBRAS_API_KEY;
+  process.env.CEREBRAS_API_KEY = "mock-key";
   globalThis.curafindMedicalSessions?.clear();
   try { return await run(); }
   finally {
-    if (key === undefined) delete process.env.GEMINI_API_KEY;
-    else process.env.GEMINI_API_KEY = key;
+    if (key === undefined) delete process.env.CEREBRAS_API_KEY;
+    else process.env.CEREBRAS_API_KEY = key;
     globalThis.curafindMedicalSessions?.clear();
   }
 }
@@ -173,7 +173,17 @@ test("real Strands agent pauses, snapshots, resumes with canonical answers, and 
       "raw metadata must stay out of model turns, including after loading a snapshot");
   }
   assert.equal(app.calls.length, 2, "resume must reuse retrieved evidence");
-  assert.equal(app.models.every(model => model.getConfig().modelId === "gemini-3.1-flash-lite"), true);
+  assert.equal(app.models.every(model => model.getConfig().modelId === "gpt-oss-120b"), true);
+  for (const model of app.models) {
+    const config = model.getConfig();
+    assert.equal(config.api, "chat");
+    assert.equal(config.apiKey, "mock-key");
+    assert.equal(config.clientConfig.baseURL, "https://api.cerebras.ai/v1");
+    assert.equal(config.clientConfig.maxRetries, 0);
+    assert.equal(config.maxTokens, 8192);
+    assert.deepEqual(config.params, { reasoning_effort: "low", parallel_tool_calls: true });
+    assert.deepEqual(config.cacheConfig, { cacheKey: false });
+  }
   assert.equal(app.models.length, 2);
   assert.equal(app.disconnects(), 2);
   await assert.rejects(app.resumeMedicalResearch({ sessionId: first.sessionId, answers: [] }), /expired/);
@@ -193,7 +203,7 @@ test("research sessions are isolated, unknown answers fail, and omitted answers 
   assert.equal(globalThis.curafindMedicalSessions.has(second.sessionId), true);
 }));
 
-test("resume can force final output with a Gemini-compatible schema while server limits remain enforced", async () => env(async () => {
+test("resume can force final output with a provider-compatible schema while server limits remain enforced", async () => env(async () => {
   const app = workflow({ forceFinal: true });
   const first = await app.startMedicalResearch(request);
   const final = await app.resumeMedicalResearch({ sessionId: first.sessionId, answers: [] });
@@ -260,6 +270,10 @@ test("unretrieved studies, altered abstracts, bad URLs, duplicate IDs and wrong 
   assert.throws(() => validateReport({ ...report, trials: [], research: [] }, request, []), /did not run/);
   assert.throws(() => validateReport({ ...report, trials: [{ ...trial, title: "Invented title" }] }, request, sourceRecords),
     /NCT12345678: title does not match cited source\(s\) trial-source/);
+  assert.throws(() => validateReport({ ...report, research: [{ ...article, id: "article-source" }] }, request, sourceRecords),
+    /study id for this retrieved URL is '12345'/);
+  assert.throws(() => validateReport({ ...report, research: [{ ...article, eligibility: "not-applicable" }] }, request, sourceRecords),
+    /Study 12345 is marked not-applicable\. Remove this study/);
 });
 
 test("invalid requests, missing keys and cancelled searches never connect to MCP", async () => env(async () => {
@@ -271,8 +285,8 @@ test("invalid requests, missing keys and cancelled searches never connect to MCP
   const controller = new AbortController();
   controller.abort();
   await assert.rejects(app.startMedicalResearch(request, controller.signal), { name: "AbortError" });
-  delete process.env.GEMINI_API_KEY;
-  await assert.rejects(app.startMedicalResearch(request), /GEMINI_API_KEY/);
+  delete process.env.CEREBRAS_API_KEY;
+  await assert.rejects(app.startMedicalResearch(request), /CEREBRAS_API_KEY/);
   assert.equal(app.disconnects(), 0);
 }));
 

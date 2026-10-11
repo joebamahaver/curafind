@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { Agent, BeforeModelCallEvent, InterruptResponseContent, tool, type JSONValue, type Snapshot } from "@strands-agents/sdk";
-import { GoogleModel } from "@strands-agents/sdk/models/google";
+import { OpenAIModel } from "@strands-agents/sdk/models/openai";
 import { connectMedicalMcp } from "./medical-mcp.ts";
 import { MEDICAL_SYSTEM_PROMPT } from "./medical-system-prompt.ts";
 import { medicalModelContext, resolveEligibilityCriterion } from "./medical-model-context.ts";
@@ -10,7 +10,7 @@ import {
   type MedicalRequest, type MedicalResearchResult, type EligibilityQuestion, type SourceRecord,
 } from "./medical-research-types.ts";
 
-export const MODEL_ID = "gemini-3.1-flash-lite"; // goog3
+export const MODEL_ID = process.env.CEREBRAS_MODEL?.trim() || "gpt-oss-120b";
 const SESSION_TTL = 30 * 60 * 1000;
 type Session = {
   request: MedicalRequest;
@@ -113,12 +113,18 @@ export function validateReport(report: unknown, request: MedicalRequest, sources
     const evidence = cited.map(source => evidenceText(source!.result)).join("\n");
     const mismatched = (["id", "title", "url"] as const).filter(field => !evidence.includes(study[field]));
     if (mismatched.length) {
-      throw new Error(`Study ${study.id}: ${mismatched.join(", ")} does not match cited source(s) ${study.sourceIds.join(", ")}. Copy these fields exactly from the retrieved evidence; do not paraphrase titles or normalize URLs.`);
+      // A verified source URL can also tell the model which study ID to copy.
+      const urlId = !mismatched.includes("url") ? new URL(study.url).pathname.split("/").filter(Boolean).at(-1) : undefined;
+      const hint = mismatched.includes("id") && urlId && /^(NCT\d{8}|\d+)$/.test(urlId)
+        ? ` The study id for this retrieved URL is '${urlId}'; citation UUIDs belong only in sourceIds.` : "";
+      throw new Error(`Study ${study.id}: ${mismatched.join(", ")} does not match cited source(s) ${study.sourceIds.join(", ")}.${hint} Copy these fields exactly from the retrieved evidence; do not paraphrase titles or normalize URLs.`);
     }
     if (study.abstract !== null && !evidence.includes(study.abstract)) {
       throw new Error("A study abstract or summary does not match retrieved evidence.");
     }
-    if (study.eligibility === "not-applicable") throw new Error("A clearly excluded study was returned as a match.");
+    if (study.eligibility === "not-applicable") {
+      throw new Error(`Study ${study.id} is marked not-applicable. Remove this study from the returned arrays and explain its exclusion in limitations. Published research that does not assess enrollment uses uncertain.`);
+    }
     if (parsed.trials.includes(study) && !cited.some(source => source?.tool === "search-trials-with-eligibility")) {
       throw new Error("A trial has no retrieved eligibility record.");
     }
@@ -146,7 +152,7 @@ export function validateAnswers(questions: EligibilityQuestion[], input: unknown
 }
 
 async function invoke(session: Session, sessionId: string, answers?: JSONValue, signal?: AbortSignal): Promise<MedicalResearchResult> {
-  if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured.");
+  if (!process.env.CEREBRAS_API_KEY) throw new Error("CEREBRAS_API_KEY is not configured.");
   const trialLimit = limit("MEDICAL_TRIAL_LIMIT", 10, 25);
   const researchLimit = limit("MEDICAL_RESEARCH_LIMIT", 5, 20);
   const turns = limit("MEDICAL_MAX_TURNS", 20, 50);
@@ -229,7 +235,13 @@ async function invoke(session: Session, sessionId: string, answers?: JSONValue, 
     }
   });
   const agent = new Agent({
-    model: new GoogleModel({ modelId: MODEL_ID, params: { temperature: 0.2, maxOutputTokens: 8192 } }),
+    model: new OpenAIModel({
+      api: "chat", modelId: MODEL_ID, apiKey: process.env.CEREBRAS_API_KEY,
+      clientConfig: { baseURL: "https://api.cerebras.ai/v1", maxRetries: 0 },
+      temperature: 0.2, maxTokens: 8192,
+      params: { reasoning_effort: "low", parallel_tool_calls: true },
+      cacheConfig: { cacheKey: false },
+    }),
     systemPrompt: MEDICAL_SYSTEM_PROMPT,
     tools: [...tools, askQuestions],
     structuredOutputSchema: finalSchema,
@@ -243,7 +255,7 @@ async function invoke(session: Session, sessionId: string, answers?: JSONValue, 
   });
   try {
     if (session.snapshot) agent.loadSnapshot(session.snapshot);
-    console.info(`[medical-research] Using goog3: ${MODEL_ID}`);
+    console.info(`[medical-research] Using Cerebras: ${MODEL_ID}`);
     const result = await agent.invoke(answers !== undefined
       ? [new InterruptResponseContent({ interruptId: session.interruptId!, response: answers })]
       : JSON.stringify({ request: session.request, limits: { trials: trialLimit, research: researchLimit } }), {

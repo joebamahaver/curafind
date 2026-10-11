@@ -1,15 +1,15 @@
 # Curafind
 
-Clinical trial and treatment research for HackMidwest 2026. Next.js Server Functions run a fresh AWS Strands agent using `goog3` (`gemini-3.1-flash-lite`) and [Medical MCP](https://github.com/JamesANZ/medical-mcp).
+Clinical trial and treatment research for HackMidwest 2026. Next.js Server Functions run a fresh AWS Strands agent using Cerebras `gpt-oss-120b` and [Medical MCP](https://github.com/JamesANZ/medical-mcp).
 
 ## Setup
 
-Use Node 22.18+ and Docker. Run `npm install`, copy the settings in `.env.example` into your `.env`, and set `GEMINI_API_KEY`. Keep this key on the server; do not use a `NEXT_PUBLIC_` prefix.
+Use Node 22.18+ and Docker. Run `npm install`, copy the settings in `.env.example` into your `.env`, and set `CEREBRAS_API_KEY`. Keep this key on the server; do not use a `NEXT_PUBLIC_` prefix. `CEREBRAS_MODEL` defaults to `gpt-oss-120b`.
 
 ```sh
 npm run setup:mcp
 npm run test:mcp
-# Optional live goog3 test; uses the API key and synthetic, unknown answers:
+# Optional live Cerebras test; uses the API key and synthetic, unknown answers:
 npm run test:mcp -- --agent
 ```
 

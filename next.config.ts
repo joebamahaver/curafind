@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@strands-agents/sdk", "@modelcontextprotocol/client", "@google/genai"],
+  serverExternalPackages: ["@strands-agents/sdk", "@modelcontextprotocol/client", "openai"],
   /* config options here */
   cacheComponents: true,
   // MCP opens live SSE streams that are aborted at the end of each invocation.

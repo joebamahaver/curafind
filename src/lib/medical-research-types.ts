@@ -42,15 +42,16 @@ export const resumeSchema = z.object({
 });
 
 const studySchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).describe("Exact study identifier: NCT12345678 for trials, or bare numeric PMID such as 30359681 for PubMed. Never use a sourceId UUID or add a PMID prefix."),
   title: z.string().min(1),
   url: z.url().refine(value => value.startsWith("https://"), "Study URLs must use HTTPS."),
   abstract: z.string().nullable().describe("Verbatim available abstract or trial summary; null when unavailable."),
   treatment: z.string().nullable(),
   explanation: z.string().min(1),
-  eligibility: z.enum(["potential-match", "uncertain", "not-applicable"]),
+  eligibility: z.enum(["potential-match", "uncertain", "not-applicable"])
+    .describe("Published research uses uncertain. Omit not-applicable records from the returned arrays and explain exclusions in limitations."),
   uncertainties: z.array(z.string()),
-  sourceIds: z.array(z.string()).min(1),
+  sourceIds: z.array(z.string()).min(1).describe("Cite the sourceId UUIDs returned by MCP tools. These are citations, distinct from the study's NCT ID or PMID."),
 });
 export const medicalReportSchema = z.object({
   summary: z.string().min(1),

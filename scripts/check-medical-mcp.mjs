@@ -41,9 +41,9 @@ if (process.argv.includes("--agent")) {
       });
       return originalInvoke.apply(this, args);
     };
-    const { GoogleModel } = await import("@strands-agents/sdk/models/google");
-    const originalStream = GoogleModel.prototype.stream;
-    GoogleModel.prototype.stream = async function* (messages, options) {
+    const { OpenAIModel } = await import("@strands-agents/sdk/models/openai");
+    const originalStream = OpenAIModel.prototype.stream;
+    OpenAIModel.prototype.stream = async function* (messages, options) {
       // Exercise Strands' forced-output fallback after synthetic eligibility answers.
       if (process.argv.includes("--force-final") && !options?.toolChoice && JSON.stringify(messages).includes('"answer":')) {
         console.log("Simulating a plain-text completion to exercise forced final output.");

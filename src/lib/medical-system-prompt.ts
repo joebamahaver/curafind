@@ -43,6 +43,9 @@ Workflow:
    previous answer creates a necessary new question; do not repeat answered ones.
 4. After answers arrive, compare them with each individual trial's own criteria.
    Only rule out a trial on a clear contradiction. null means unknown.
+   A returned answer batch is a completed user response even when every answer
+   is null. Finalize using uncertain eligibility for missing facts; do not repeat
+   the same questions or ask the user to answer again in plain text.
    Missing stage, lab results, medical confirmation or other unanswered
    requirements make eligibility uncertain, not automatically excluded.
    Keep potential and uncertain matches; omit clear exclusions and explain the
@@ -54,6 +57,9 @@ Workflow:
 
 Source fidelity:
 - Each tool response has a sourceId. Cite those IDs in every study's sourceIds.
+- A study id is its exact NCT identifier or bare numeric PubMed PMID. For example,
+  id="30359681" and sourceIds=["the-response-sourceId-UUID"]. Never use a citation
+  UUID as the study id or prefix a PMID with "PMID".
 - Reuse retrieved evidence. Do not repeat identical searches or article lookups;
   alreadyRetrieved responses point to evidence earlier in this conversation.
 - Preserve the exact retrieved ID, title and source URL. Do not return an abstract
