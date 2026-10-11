@@ -1,16 +1,45 @@
-import { Agent } from "@strands-agents/sdk";
+import { Agent, Model } from "@strands-agents/sdk";
 import { OpenAIModel } from "@strands-agents/sdk/models/openai";
 import { z } from "zod";
 import type { TrialSummary } from "./clinical-trials";
 import { vicort } from "./vicort";
+import { GoogleModel } from '@strands-agents/sdk/models/google'
 
-const model = new OpenAIModel({
+const groq = new OpenAIModel({
   api: "chat",
   modelId: "openai/gpt-oss-20b",
   apiKey: process.env.GROQ_API_KEY,
   clientConfig: { baseURL: "https://api.groq.com/openai/v1" },
   params: { reasoning_effort: "low", parallel_tool_calls: false },
 });
+
+// Only enable Cerebras when configured, so Groq still works without its key.
+const cerebras = process.env.CEREBRAS_API_KEY
+  ? new OpenAIModel({
+      api: "chat",
+      modelId: "qwen-3.8-27b",
+      apiKey: process.env.CEREBRAS_API_KEY,
+      clientConfig: { baseURL: "https://api.cerebras.ai/v1" },
+      params: { reasoning_effort: "low", parallel_tool_calls: false },
+    })
+  : null;
+
+const goog1=new GoogleModel({modelId:"gemma-4-26b-a4b-it"})
+const goog2=new GoogleModel({modelId:"gemma-4-31b-it"})
+const goog3=new GoogleModel({modelId:"gemini-3.1-flash-lite"})
+
+const models: Model[] = [groq];
+if (cerebras) models.push(cerebras);
+let cursor = 0;
+models.push(goog1)
+models.push(goog2)
+models.push(goog3)
+
+function getModel(): Model {
+  const selected = models[cursor];
+  cursor = (cursor + 1) % models.length;
+  return selected;
+}
 
 const scoreSchema = z.object({
   applicableness: z.number().min(0).max(100)
@@ -24,7 +53,7 @@ export async function evaluateTrial(
   trial_conditions: string[],
 ) {
   const evaluator = new Agent({
-    model,
+    model: getModel(),
     systemPrompt: `${vicort}\nEvaluate the supplied trial.`,
     structuredOutputSchema: scoreSchema,
   });
@@ -46,7 +75,7 @@ const studySchema = scoreSchema.extend({
 
 export async function evaluateStudy(condition: string, abstract: string) {
   const evaluator = new Agent({
-    model,
+    model: getModel(),
     systemPrompt: `
 Evaluate the supplied study abstract for the supplied condition.
 - Score applicableness from 0 to 100 using only evidence in the abstract.
@@ -86,7 +115,7 @@ export async function criterionFinder(
     condition: string,
   ) {
     const evaluator = new Agent({
-        model,
+        model: getModel(),
         systemPrompt: `
     Generate questions for the user based on the supplied eligibility criteria.
     
@@ -128,7 +157,7 @@ export async function criterionFinder(
     criterion: string,
   ): Promise<boolean> {
     const evaluator = new Agent({
-      model,
+      model: getModel(),
       systemPrompt: `
   Determine whether the user could potentially qualify for the trial.
   
@@ -170,7 +199,7 @@ export async function criterionFinder(
     if (trials.length === 0) return [];
   
     const evaluator = new Agent({
-      model,
+      model: getModel(),
       systemPrompt: `
   Rank the supplied trials from strongest to weakest potential fit
   for the user's condition and answers.
