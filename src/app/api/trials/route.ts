@@ -2,7 +2,7 @@ import {
   parseDiagnosisSearch,
   TrialSearchError,
 } from "@/lib/clinical-trials";
-import { searchAndRankTrials } from "@/lib/trial-workflow";
+import { searchTrialsAndMakeQuestions } from "@/lib/trial-workflow";
 
 export async function POST(request: Request) {
   const headers = { "Cache-Control": "no-store" };
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     );
   }
   try {
-    const result = await searchAndRankTrials(parseDiagnosisSearch(body), {
+    const result = await searchTrialsAndMakeQuestions(parseDiagnosisSearch(body), {
       signal: request.signal,
     });
     return Response.json(result, { headers });
