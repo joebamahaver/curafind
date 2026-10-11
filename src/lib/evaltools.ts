@@ -1,12 +1,15 @@
 import { Agent } from "@strands-agents/sdk";
-import { GoogleModel } from "@strands-agents/sdk/models/google";
+import { OpenAIModel } from "@strands-agents/sdk/models/openai";
 import { z } from "zod";
 import type { TrialSummary } from "./clinical-trials";
 import { vicort } from "./vicort";
 
-const model = new GoogleModel({
-  modelId: "gemini-3.8-flash",
-  params: { thinkingConfig: { thinkingLevel: "LOW" } },
+const model = new OpenAIModel({
+  api: "chat",
+  modelId: "openai/gpt-oss-20b",
+  apiKey: process.env.GROQ_API_KEY,
+  clientConfig: { baseURL: "https://api.groq.com/openai/v1" },
+  params: { reasoning_effort: "low", parallel_tool_calls: false },
 });
 
 const scoreSchema = z.object({

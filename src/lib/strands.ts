@@ -1,18 +1,15 @@
-import { Agent } from "@strands-agents/sdk";
-import { GoogleModel } from "@strands-agents/sdk/models/google";
+import { Agent } from '@strands-agents/sdk'
+import { OpenAIModel } from '@strands-agents/sdk/models/openai'
 
-import { TrialSummary } from "./clinical-trials";
+if (!process.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY is not configured.')
 
-// Reads GEMINI_API_KEY from the environment.
-const model = new GoogleModel({ modelId: "gemini-3.8-flash" });
-const agent = new Agent({ model });
-const result = await agent.invoke("What is an agent harness, in one sentence?");
-console.log(result.lastMessage);
-
-export async function dummyRankApplicableness(
-  trial: TrialSummary,
-): Promise<void> {
-  const randomInt = (min: number, max: number) =>
-    Math.floor(Math.random() * (max - min + 1)) + min;
-  trial.applicableness = randomInt(0, 100);
-}
+const model = new OpenAIModel({
+  api: 'chat',
+  modelId: 'openai/gpt-oss-20b',
+  apiKey: process.env.GROQ_API_KEY,
+  clientConfig: { baseURL: 'https://api.groq.com/openai/v1' },
+  params: { reasoning_effort: 'low', parallel_tool_calls: false },
+})
+const agent = new Agent({ model })
+const result = await agent.invoke('What is an agent harness, in one sentence?')
+console.log(result.lastMessage)
