@@ -66,15 +66,15 @@ export async function searchTrialsAndMakeQuestions(
 
   // Keep up to the configured number of highest-scoring trials.
   studies.sort((a, b) => b.applicableness - a.applicableness);
-  const applicable_trials = studies.slice(0, shortlistLimit);
+  const shortlistedTrials = studies.slice(0, shortlistLimit);
 
   // concatenate criteria from applicable trials to create questions
-  const combinedCriteria = applicable_trials
+  const combinedCriteria = shortlistedTrials
     .map(eligibilityText)
     .join("\n\n---\n\n");
 
   const { questions } =
-    applicable_trials.length > 0
+    shortlistedTrials.length > 0
       ? await criterionFinder(combinedCriteria, input.diagnosis)
       : { questions: [] };
   console.log(questions);
@@ -82,7 +82,7 @@ export async function searchTrialsAndMakeQuestions(
   return {
     ...trials,
     questions,
-    trialSums: applicable_trials.map((trial, index) => ({
+    trialSums: shortlistedTrials.map((trial, index) => ({
       ...trial,
       rank: index + 1,
       explanation: "",
