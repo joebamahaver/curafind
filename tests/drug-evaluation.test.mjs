@@ -52,6 +52,7 @@ async function withEnv(values, run) {
 }
 
 const defaults = { GROQ_API_KEY: "mock-key", DRUG_EVAL_LIMIT: undefined, DRUG_DISPLAY_LIMIT: undefined };
+const trialLocation = { zipCode: "64108", travelDistanceMiles: 50 };
 const scores = [null, [90, 55], [95, 20], [95, 80], [20, 99], [80, 1], [100, 100]];
 function setup({ missingAbstracts = false, failures = [] } = {}) {
   const calls = [];
@@ -75,7 +76,7 @@ function setup({ missingAbstracts = false, failures = [] } = {}) {
         calls.push(["evaluate", condition, abstract]);
         if (failures.includes(abstract)) throw new Error("Mock provider failure");
         const [applicableness, efficacy] = scores[Number(abstract)];
-        return { applicableness, efficacy, drugName: `Drug ${abstract}` };
+        return { applicableness, efficacy, treatment: `Treatment ${abstract}` };
       },
     },
   };
@@ -95,7 +96,7 @@ test("defaults cap evaluation at five usable abstracts and display two, ranking 
     assert.deepEqual(result.data.topArticles.map(article => article.id), ["3", "2"]);
     assert.equal(result.data.articles[0].abstract, "3");
     assert.deepEqual(result.data.articles[0].extraMetadata, { retained: true });
-    assert.equal(result.data.articles[0].drugName, "Drug 3");
+    assert.equal(result.data.articles[0].treatment, "Treatment 3");
   });
 });
 
@@ -188,9 +189,10 @@ test("result cards render only the selected top results with source links and bo
     const { renderToStaticMarkup } = require("react-dom/server");
     const { DrugResearchResults } = load("src/components/drug-research-results.tsx");
     const html = renderToStaticMarkup(createElement(DrugResearchResults, { result: data }));
-    assert.match(html, /Drug 3/);
-    assert.match(html, /Drug 2/);
-    assert.doesNotMatch(html, /Drug 1/);
+    assert.match(html, /Treatment 3/);
+    assert.match(html, /Treatment 2/);
+    assert.doesNotMatch(html, /Treatment 1/);
+    assert.match(html, /Treatment:<\/span>/);
     assert.equal((html.match(/data-slot="card"/g) ?? []).length, 2);
     assert.match(html, /Applicability/);
     assert.match(html, /Estimated efficacy/);
@@ -208,20 +210,20 @@ test("a failed drug search does not discard successful clinical trial results", 
       searchAndEvaluateDrugs: async () => ({ success: false, error: "Drug provider unavailable" }),
     },
   });
-  const result = await client.requestResearchSearch({ condition: "Example", clinicalTrials: true, offLabelDrugsOrSupplements: true }, undefined, async () => Response.json(trials));
+  const result = await client.requestResearchSearch({ condition: "Example", ...trialLocation, clinicalTrials: true, offLabelDrugsOrSupplements: true }, undefined, async () => Response.json(trials));
   assert.deepEqual(result.clinicalTrials, trials);
   assert.equal(result.drugResearch, null);
   assert.deepEqual(result.errors, { drugResearch: "Drug provider unavailable" });
 });
 
 test("a failed clinical trial search does not discard successful drug results", async () => {
-  const drugs = { diagnosis: "Example", articles: [{ id: "123", drugName: "ExampleDrug" }], topArticles: [] };
+  const drugs = { diagnosis: "Example", articles: [{ id: "123", treatment: "Example therapy" }], topArticles: [] };
   const client = load("src/lib/research-search-client.ts", {
     "@/app/actions/drug-research": {
       searchAndEvaluateDrugs: async () => ({ success: true, data: drugs }),
     },
   });
-  const result = await client.requestResearchSearch({ condition: "Example", clinicalTrials: true, offLabelDrugsOrSupplements: true }, undefined, async () => Response.json({ error: "Trials unavailable" }, { status: 502 }));
+  const result = await client.requestResearchSearch({ condition: "Example", ...trialLocation, clinicalTrials: true, offLabelDrugsOrSupplements: true }, undefined, async () => Response.json({ error: "Trials unavailable" }, { status: 502 }));
   assert.equal(result.clinicalTrials, null);
   assert.deepEqual(result.drugResearch, drugs);
   assert.deepEqual(result.errors, { clinicalTrials: "Trials unavailable" });
@@ -229,7 +231,7 @@ test("a failed clinical trial search does not discard successful drug results", 
 
 test("checkbox selection calls only the selected paths and preserves their complete JSON", async () => {
   const trials = { studies: [{ id: "NCT00000001", extra: "retained" }], nextPageToken: "next-page", totalCount: 20 };
-  const drugs = { diagnosis: "Example", articles: [{ id: "123", abstract: "Full abstract", applicableness: 90, efficacy: 70, drugName: null }], topArticles: [], extra: "retained" };
+  const drugs = { diagnosis: "Example", articles: [{ id: "123", abstract: "Full abstract", applicableness: 90, efficacy: 70, treatment: null }], topArticles: [], extra: "retained" };
   for (const [clinicalTrials, offLabelDrugsOrSupplements] of [[true, false], [false, true], [true, true]]) {
     const calls = [];
     const signal = new AbortController().signal;
@@ -242,12 +244,12 @@ test("checkbox selection calls only the selected paths and preserves their compl
         },
       },
     });
-    const result = await client.requestResearchSearch({ condition: "  Example  ", clinicalTrials, offLabelDrugsOrSupplements }, signal, async (url, options) => {
+    const result = await client.requestResearchSearch({ condition: "  Example  ", ...trialLocation, clinicalTrials, offLabelDrugsOrSupplements }, signal, async (url, options) => {
       calls.push("trials");
       assert.equal(url, "/api/trials");
       assert.equal(options.method, "POST");
       assert.equal(options.signal, signal);
-      assert.deepEqual(JSON.parse(options.body), { diagnosis: "Example", recruitment: "recruiting-or-upcoming", pageSize: 10 });
+      assert.deepEqual(JSON.parse(options.body), { diagnosis: "Example", recruitment: "recruiting-or-upcoming", ...trialLocation });
       return Response.json(trials);
     });
     assert.deepEqual(result, { clinicalTrials: clinicalTrials ? trials : null, drugResearch: offLabelDrugsOrSupplements ? drugs : null });
@@ -264,9 +266,18 @@ test("failed selected searches still reject so the form shows its retry state", 
     },
   });
   const failedTrials = async () => Response.json({ error: "Trials unavailable" }, { status: 502 });
-  await assert.rejects(client.requestResearchSearch({ condition: "Example", clinicalTrials: true, offLabelDrugsOrSupplements: true }, undefined, failedTrials), /Trials unavailable.*Drug provider unavailable/);
+  await assert.rejects(client.requestResearchSearch({ condition: "Example", ...trialLocation, clinicalTrials: true, offLabelDrugsOrSupplements: true }, undefined, failedTrials), /Trials unavailable.*Drug provider unavailable/);
   await assert.rejects(client.requestResearchSearch({ condition: "Example", clinicalTrials: false, offLabelDrugsOrSupplements: true }, undefined, failedTrials), /Drug provider unavailable/);
-  await assert.rejects(client.requestResearchSearch({ condition: "Example", clinicalTrials: true, offLabelDrugsOrSupplements: false }, undefined, failedTrials), /Trials unavailable/);
+  await assert.rejects(client.requestResearchSearch({ condition: "Example", ...trialLocation, clinicalTrials: true, offLabelDrugsOrSupplements: false }, undefined, failedTrials), /Trials unavailable/);
+});
+
+test("clinical trial searches require a valid ZIP and distance before either search is dispatched", async () => {
+  const client = load("src/lib/research-search-client.ts", {
+    "@/app/actions/drug-research": { searchAndEvaluateDrugs: () => assert.fail("Must not dispatch inference") },
+  });
+  for (const location of [{}, { zipCode: "abcde", travelDistanceMiles: 50 }, { zipCode: "64108", travelDistanceMiles: null }, { zipCode: "64108", travelDistanceMiles: 0 }]) {
+    await assert.rejects(client.requestResearchSearch({ condition: "Example", ...location, clinicalTrials: true, offLabelDrugsOrSupplements: true }, undefined, () => assert.fail("Must not fetch trials")), /ZIP code|travel|Travel/);
+  }
 });
 
 test("unselected searches, blank input, and already-cancelled requests never dispatch work", async () => {

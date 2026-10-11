@@ -18,8 +18,10 @@ and 2. Restart a running server after changing `.env`.
 The flow takes the first available abstracts in the search's returned order,
 up to `DRUG_EVAL_LIMIT`. Studies without abstracts are skipped. Each selected
 study is passed to `evaluateStudy(condition, abstract)`, which creates a fresh
-agent. Its `drugName`, `applicableness`, and `efficacy` are added to the original
+agent. Its `treatment`, `applicableness`, and `efficacy` are added to the original
 article JSON. Scores are estimates from abstracts, not treatment success rates.
+`treatment` can identify a drug, supplement, behavioral therapy, procedure, or
+another intervention; it is `null` if none is identified in the abstract.
 
 Results sort by descending `applicableness`, then descending `efficacy` to break
 ties. `articles` contains all successful evaluations; `topArticles` contains up

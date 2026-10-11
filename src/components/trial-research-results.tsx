@@ -1,6 +1,7 @@
 import type { FinalTrialResult } from "@/lib/trial-workflow";
 
-export function TrialResearchResults({ result }: { result: FinalTrialResult }) {
+export function TrialResearchResults({ result, activeIndex }: { result: FinalTrialResult; activeIndex?: number }) {
+  const studies = activeIndex === undefined ? result.studies : result.studies.slice(activeIndex, activeIndex + 1);
   return (
     <section aria-label="Ranked clinical trials" className="space-y-4">
       <h2 className="text-lg font-medium">Your trial matches</h2>
@@ -11,7 +12,7 @@ export function TrialResearchResults({ result }: { result: FinalTrialResult }) {
       {result.studies.length === 0 && (
         <p className="text-sm">None of the shortlisted trials matched your answers. You can edit your answers or start a new search.</p>
       )}
-      {result.studies.map((trial) => (
+      {studies.map((trial) => (
         <article key={trial.id} className="rounded-xl border border-border p-4 sm:p-5">
           <p className="text-xs text-muted-foreground">Rank {trial.rank} · {trial.id}</p>
           <h3 className="mt-2 font-medium">

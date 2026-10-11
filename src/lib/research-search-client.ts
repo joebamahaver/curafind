@@ -3,6 +3,7 @@ import type { PreparedTrialSearchResult } from "./trial-workflow";
 import { requestTrialSearch } from "./trial-search-client";
 import { searchAndEvaluateDrugs } from "@/app/actions/drug-research";
 import type { DrugResearchResult } from "./drug-evaluation-types";
+import { trialLocationSchema } from "./trial-location";
 
 export type { ResearchArticle } from "./drug-evaluation-types";
 
@@ -36,12 +37,15 @@ export async function requestResearchSearch(
   if (!request.clinicalTrials && !request.offLabelDrugsOrSupplements) {
     throw new Error("Select at least one search option.");
   }
+  const location = request.clinicalTrials ? trialLocationSchema.safeParse(request) : null;
+  if (location && !location.success) throw new Error(location.error.issues[0].message);
 
   const [trialResult, drugResult] = await Promise.allSettled([
     request.clinicalTrials
       ? requestTrialSearch({
           diagnosis: condition,
           recruitment: "recruiting-or-upcoming",
+          ...(location?.success ? location.data : {}),
         }, signal, fetcher)
       : null,
     request.offLabelDrugsOrSupplements

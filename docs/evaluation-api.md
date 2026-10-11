@@ -47,7 +47,11 @@ async function postJson(path, body) {
 
 // Use the initial condition and full studies from your search results.
 const condition = "Your initial condition";
-const { studies } = await postJson("/api/trials", { diagnosis: condition });
+const { studies } = await postJson("/api/trials", {
+  diagnosis: condition,
+  zipCode: "64108",
+  travelDistanceMiles: 50,
+});
 
 // Optional: evaluate an individual study's applicability.
 if (studies.length > 0) {
