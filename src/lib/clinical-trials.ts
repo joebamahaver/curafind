@@ -267,19 +267,16 @@ export async function searchTrialsByDiagnosis(
 }
 
 export async function rankTrials(
-  studies: TrialSummary[],
+  trials: TrialSummary[],
 ): Promise<TrialSummary[]> {
-  for (const study of studies) {
-    await dummyRankApplicableness(study);
+  for (const trial of trials) {
+    await dummyRankApplicableness(trial);
   }
 
-  studies.sort((a, b) => b.applicableness - a.applicableness);
+  trials.sort((a, b) => b.applicableness - a.applicableness);
 
   const top_percentage = 0.25;
-  const top_studies = studies.slice(
-    0,
-    Math.ceil(studies.length * top_percentage),
-  );
+  const top_trials = trials.slice(0, Math.ceil(trials.length * top_percentage));
 
-  return top_studies;
+  return top_trials;
 }

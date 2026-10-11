@@ -10,9 +10,9 @@ const result = await agent.invoke("What is an agent harness, in one sentence?");
 console.log(result.lastMessage);
 
 export async function dummyRankApplicableness(
-  study: TrialSummary,
+  trial: TrialSummary,
 ): Promise<void> {
   const randomInt = (min: number, max: number) =>
     Math.floor(Math.random() * (max - min + 1)) + min;
-  study.applicableness = randomInt(0, 100);
+  trial.applicableness = randomInt(0, 100);
 }
