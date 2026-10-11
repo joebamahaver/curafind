@@ -1,6 +1,10 @@
 /** Framework-independent client for the ClinicalTrials.gov v2 studies API. */
+import { trialLocationSchema } from "./trial-location";
+
 export interface DiagnosisSearch {
   diagnosis: string;
+  zipCode?: string;
+  travelDistanceMiles?: number;
   /** Stage/subtype text search, not an eligibility check. */
   keywords?: string;
   recruitment?: "recruiting" | "recruiting-or-upcoming";
@@ -42,6 +46,14 @@ export interface TrialSearchResult {
   totalCount?: number;
   nextPageToken?: string;
   requestUrl: string;
+  locationFilter?: {
+    zipCode: string;
+    travelDistanceMiles: number;
+    latitude: number;
+    longitude: number;
+    city: string;
+    state: string;
+  };
 }
 
 export class TrialSearchError extends Error {
@@ -114,8 +126,15 @@ export function parseDiagnosisSearch(value: unknown): DiagnosisSearch {
   ) {
     throw new TrialSearchError("Invalid page token. Start a new search.", 400);
   }
+  let location = {};
+  if (input.zipCode !== undefined || input.travelDistanceMiles !== undefined) {
+    const parsed = trialLocationSchema.safeParse(input);
+    if (!parsed.success) throw new TrialSearchError(parsed.error.issues[0].message, 400);
+    location = parsed.data;
+  }
   return {
     diagnosis,
+    ...location,
     keywords: text(input.keywords).trim(),
     recruitment,
     pageSize,
@@ -123,11 +142,18 @@ export function parseDiagnosisSearch(value: unknown): DiagnosisSearch {
   };
 }
 
-export function buildClinicalTrialsUrl(input: DiagnosisSearch): URL {
+export function buildClinicalTrialsUrl(input: DiagnosisSearch, coordinates?: { latitude: number; longitude: number }): URL {
   const search = parseDiagnosisSearch(input);
   const url = new URL("https://clinicaltrials.gov/api/v2/studies");
   url.searchParams.set("format", "json");
   url.searchParams.set("query.cond", search.diagnosis);
+  if (search.zipCode) {
+    if (!coordinates || !Number.isFinite(coordinates.latitude) || !Number.isFinite(coordinates.longitude) ||
+      Math.abs(coordinates.latitude) > 90 || Math.abs(coordinates.longitude) > 180) {
+      throw new TrialSearchError("Could not resolve the ZIP code's location. Please retry.");
+    }
+    url.searchParams.set("filter.geo", `distance(${coordinates.latitude},${coordinates.longitude},${search.travelDistanceMiles}mi)`);
+  }
   if (search.keywords) url.searchParams.set("query.term", search.keywords);
   url.searchParams.set(
     "filter.overallStatus",
@@ -199,12 +225,43 @@ export function normalizeStudy(value: unknown): TrialSummary {
   };
 }
 
+async function resolveZipCode(zipCode: string, options: { fetcher?: typeof fetch; signal?: AbortSignal }) {
+  const timeout = AbortSignal.timeout(10000);
+  const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
+  try {
+    signal.throwIfAborted();
+    const response = await (options.fetcher ?? fetch)(`https://api.zippopotam.us/us/${zipCode}`, {
+      headers: { Accept: "application/json" }, cache: "no-store", signal,
+    });
+    signal.throwIfAborted();
+    if (response.status === 404) throw new TrialSearchError("ZIP code not found. Check your U.S. ZIP code and try again.", 400);
+    if (!response.ok) throw new TrialSearchError("ZIP code lookup is temporarily unavailable. Please retry.");
+    const place = record(list(record(await response.json()).places)[0]);
+    const latitude = Number(text(place.latitude));
+    const longitude = Number(text(place.longitude));
+    if (!text(place.latitude).trim() || !text(place.longitude).trim() ||
+      !Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+      throw new TrialSearchError("ZIP code lookup returned an invalid location. Please retry.");
+    }
+    return { latitude, longitude, city: text(place["place name"]), state: text(place["state abbreviation"]) };
+  } catch (error) {
+    if (options.signal?.aborted) throw error;
+    if (error instanceof TrialSearchError) throw error;
+    if (timeout.aborted) throw new TrialSearchError("ZIP code lookup took too long. Please retry.", 504);
+    throw new TrialSearchError("Could not look up your ZIP code. Please retry.");
+  }
+}
+
 /** Inject fetch for deterministic tests; no API key or Next.js dependency required. */
 export async function searchTrialsByDiagnosis(
   input: DiagnosisSearch,
   options: { fetcher?: typeof fetch; signal?: AbortSignal } = {},
 ): Promise<TrialSearchResult> {
-  const url = buildClinicalTrialsUrl(input);
+  const search = parseDiagnosisSearch(input);
+  options.signal?.throwIfAborted();
+  const coordinates = search.zipCode ? await resolveZipCode(search.zipCode, options) : undefined;
+  options.signal?.throwIfAborted();
+  const url = buildClinicalTrialsUrl(search, coordinates);
   const timeout = AbortSignal.timeout(15000);
   const signal = options.signal
     ? AbortSignal.any([options.signal, timeout])
@@ -249,6 +306,9 @@ export async function searchTrialsByDiagnosis(
       totalCount: payload.totalCount as number | undefined,
       nextPageToken: payload.nextPageToken as string | undefined,
       requestUrl: url.toString(),
+      ...(coordinates && search.zipCode && search.travelDistanceMiles !== undefined ? {
+        locationFilter: { ...coordinates, zipCode: search.zipCode, travelDistanceMiles: search.travelDistanceMiles },
+      } : {}),
     };
   } catch (error) {
     if (error instanceof TrialSearchError) throw error;
