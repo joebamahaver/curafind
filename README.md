@@ -60,3 +60,10 @@ Groq, Cerebras, and Google directly.
 - Run `npm run build` to build for production
 - Run `npm run start` to start the production build
 - Navigate to [localhost:3000](http://localhost:3000) to start using CuraFind
+
+## Tests
+
+Run `npm test` for the full suite or `npm run test:eval` for evaluator, evaluation
+endpoint, and trial workflow tests. Tests mock retrieval and model services and
+need no API keys or development server. See [testing details](./docs/testing.md)
+for coverage and guidance when changing the evaluation backend.

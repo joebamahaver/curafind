@@ -1,55 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
+import { load, withEnv } from "./helpers/load.mjs";
 import { createRequire } from "node:module";
-import ts from "typescript";
-
-const root = path.resolve(import.meta.dirname, "..");
 const require = createRequire(import.meta.url);
-
-// Exercise the actual TypeScript modules, substituting only external services.
-function load(file, mocks = {}, cache = new Map()) {
-  let filename = path.resolve(root, file);
-  if (!fs.existsSync(filename)) {
-    filename = [".ts", ".tsx"].map(extension => filename + extension).find(fs.existsSync);
-  }
-  if (cache.has(filename)) return cache.get(filename);
-  const loadedModule = { exports: {} };
-  cache.set(filename, loadedModule.exports);
-  const code = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
-    compilerOptions: {
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.CommonJS,
-      jsx: ts.JsxEmit.ReactJSX,
-    },
-  }).outputText;
-  const localRequire = id => {
-    if (Object.hasOwn(mocks, id)) return mocks[id];
-    if (id.startsWith("@/")) return load("src/" + id.slice(2), mocks, cache);
-    if (id.startsWith(".")) return load(path.resolve(path.dirname(filename), id), mocks, cache);
-    return require(id);
-  };
-  new Function("require", "module", "exports", code)(localRequire, loadedModule, loadedModule.exports);
-  cache.set(filename, loadedModule.exports);
-  return loadedModule.exports;
-}
-
-async function withEnv(values, run) {
-  const previous = Object.fromEntries(Object.keys(values).map(key => [key, process.env[key]]));
-  try {
-    for (const [key, value] of Object.entries(values)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-    return await run();
-  } finally {
-    for (const [key, value] of Object.entries(previous)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-  }
-}
 
 const defaults = { GROQ_API_KEY: "mock-key", DRUG_EVAL_LIMIT: undefined, DRUG_DISPLAY_LIMIT: undefined };
 const trialLocation = { zipCode: "64108", travelDistanceMiles: 50 };
@@ -204,7 +157,7 @@ test("result cards render only the selected top results with source links and bo
 });
 
 test("a failed drug search does not discard successful clinical trial results", async () => {
-  const trials = { studies: [{ id: "NCT00000001" }], nextPageToken: "next-page", totalCount: 20 };
+  const trials = { trialSums: [{ id: "NCT00000001" }], nextPageToken: "next-page", totalCount: 20 };
   const client = load("src/lib/research-search-client.ts", {
     "@/app/actions/drug-research": {
       searchAndEvaluateDrugs: async () => ({ success: false, error: "Drug provider unavailable" }),
@@ -230,7 +183,7 @@ test("a failed clinical trial search does not discard successful drug results", 
 });
 
 test("checkbox selection calls only the selected paths and preserves their complete JSON", async () => {
-  const trials = { studies: [{ id: "NCT00000001", extra: "retained" }], nextPageToken: "next-page", totalCount: 20 };
+  const trials = { trialSums: [{ id: "NCT00000001", extra: "retained" }], nextPageToken: "next-page", totalCount: 20 };
   const drugs = { diagnosis: "Example", articles: [{ id: "123", abstract: "Full abstract", applicableness: 90, efficacy: 70, treatment: null }], topArticles: [], extra: "retained" };
   for (const [clinicalTrials, offLabelDrugsOrSupplements] of [[true, false], [false, true], [true, true]]) {
     const calls = [];

@@ -1,37 +1,27 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
-import { createRequire } from "node:module";
-import ts from "typescript";
+import { load } from "./helpers/load.mjs";
+import { trial, questions } from "./helpers/fixtures.mjs";
 
-const root = path.resolve(import.meta.dirname, "..");
-const require = createRequire(import.meta.url);
-
-function load(file, mocks, cache = new Map()) {
-  const filename = path.resolve(root, file);
-  if (cache.has(filename)) return cache.get(filename);
-  const loadedModule = { exports: {} };
-  cache.set(filename, loadedModule.exports);
-  const code = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-  }).outputText;
-  const localRequire = id => {
-    if (Object.hasOwn(mocks, id)) return mocks[id];
-    if (id.startsWith(".")) {
-      return load(path.resolve(path.dirname(filename), id + ".ts"), mocks, cache);
-    }
-    return require(id);
-  };
-  new Function("require", "module", "exports", code)(localRequire, loadedModule, loadedModule.exports);
-  return loadedModule.exports;
-}
+// These tests exercise default limits independently of local .env settings.
+let previousLimits;
+test.beforeEach(() => {
+  previousLimits = [process.env.TRIAL_SEARCH_LIMIT, process.env.TRIAL_SHORTLIST_LIMIT];
+  delete process.env.TRIAL_SEARCH_LIMIT;
+  delete process.env.TRIAL_SHORTLIST_LIMIT;
+});
+test.afterEach(() => {
+  ["TRIAL_SEARCH_LIMIT", "TRIAL_SHORTLIST_LIMIT"].forEach((key, index) => {
+    if (previousLimits[index] === undefined) delete process.env[key];
+    else process.env[key] = previousLimits[index];
+  });
+});
 
 const input = { diagnosis: "Example condition", pageSize: 10 };
 const scores = [12, 93, 23, 95, 61, 42, 97, 82, 75, 30];
 function retrieval(count = 10) {
   return {
-    studies: Array.from({ length: count }, (_, index) => ({
+    trialSums: Array.from({ length: count }, (_, index) => ({
       id: `NCT${index}`, title: `Trial ${index}`, summary: `Summary ${index}`,
       conditions: [`Condition ${index}`], url: `https://example.com/${index}`,
       applicableness: 0,
@@ -104,10 +94,10 @@ test("trial scoring runs in batches of four, preserves IDs despite completion or
   for (const index of [9, 8]) pending.get(index).resolve({ applicableness: scores[index] });
   const result = await resultPromise;
   assert.equal(peak, 4);
-  assert.deepEqual(result.studies.map(({ id, applicableness, rank }) => [id, applicableness, rank]), [
+  assert.deepEqual(result.trialSums.map(({ id, applicableness, rank }) => [id, applicableness, rank]), [
     ["NCT6", 97, 1], ["NCT3", 95, 2], ["NCT1", 93, 3],
   ]);
-  assert.equal(result.studies[0].url, retrieved.studies[6].url);
+  assert.equal(result.trialSums[0].url, retrieved.trialSums[6].url);
   assert.equal(result.nextPageToken, retrieved.nextPageToken);
   assert.equal(result.totalCount, retrieved.totalCount);
   assert.deepEqual(retrieved, original, "scoring must not mutate retrieval data");
@@ -128,7 +118,7 @@ test("empty results skip inference and fewer than four trials are all evaluated"
     });
     const result = await searchTrialsAndMakeQuestions(input);
     assert.equal(calls.length, count);
-    assert.equal(result.studies.length, count);
+    assert.equal(result.trialSums.length, count);
     assert.equal(questionCalls, count > 0 ? 1 : 0);
   }
 });
@@ -205,10 +195,10 @@ test("parallel trial calls use the actual model rotation and a fresh agent for e
       "./vicort": { vicort: "mock prompt" },
     });
     const result = await searchTrialsAndMakeQuestions(input);
-    const pool = ["openai/gpt-oss-20b", "qwen-3.8-27b", "gemma-4-26b-a4b-it", "gemma-4-31b-it", "gemini-3.1-flash-lite"];
-    assert.deepEqual(agents.map(agent => agent.config.model.getConfig().modelId), [...pool, ...pool, pool[0]]);
+    const pool = ["openai/gpt-oss-20b", "qwen-3.8-27b", "gemini-3.1-flash-lite"];
+    assert.deepEqual(agents.map(agent => agent.config.model.getConfig().modelId), [...pool, ...pool, ...pool, pool[0], pool[2]]);
     assert.equal(new Set(agents).size, 11);
-    assert.deepEqual(result.studies.map(({ id }) => id), ["NCT6", "NCT3", "NCT1"]);
+    assert.deepEqual(result.trialSums.map(({ id }) => id), ["NCT6", "NCT3", "NCT1"]);
   } finally {
     if (previous === undefined) delete process.env.CEREBRAS_API_KEY;
     else process.env.CEREBRAS_API_KEY = previous;
@@ -220,7 +210,7 @@ test("Google incomplete-stream failures retry once with a fresh Groq agent and u
   process.env.CEREBRAS_API_KEY = "mock-cerebras";
   try {
     const calls = [];
-    const google = "gemma-4-26b-a4b-it";
+    const google = "gemini-3.1-flash-lite";
     const groq = "openai/gpt-oss-20b";
     class MockModel {
       constructor(config) { this.config = config; }
@@ -278,5 +268,151 @@ test("Google incomplete-stream failures retry once with a fresh Groq agent and u
   } finally {
     if (previous === undefined) delete process.env.CEREBRAS_API_KEY;
     else process.env.CEREBRAS_API_KEY = previous;
+  }
+});
+
+function rankingSetup(evaluateEligibility, rankTrials) {
+  return load("src/lib/trial-workflow.ts", {
+    "./clinical-trials": { searchTrialsByDiagnosis: () => assert.fail("Ranking must not retrieve trials") },
+    "./evaltools": { evaluateEligibility, rankTrials },
+  });
+}
+
+test("eligibility uses prepared question text, keeps false and zero, and leaves missing answers unknown", async () => {
+  const trials = [trial("A"), trial("B"), trial("C")];
+  const prepared = { trialSums: trials, questions };
+  const before = structuredClone(prepared);
+  const expectedAnswers = [
+    { question: questions[0].question, answer: 0 },
+    { question: questions[1].question, answer: false },
+    { question: questions[2].question, answer: null },
+  ];
+  const calls = [];
+  const { evaluateEligibilityAndRankTrials } = rankingSetup(async (answers, condition, criterion) => {
+    assert.deepEqual(answers, expectedAnswers);
+    assert.equal(condition, "Condition");
+    calls.push(criterion);
+    assert.match(criterion, /Minimum age: 18 Years/);
+    assert.match(criterion, /Maximum age: 65 Years/);
+    assert.match(criterion, /Sex: ALL/);
+    assert.match(criterion, /Adults without prior treatment/);
+    return !criterion.startsWith("Trial: B\n");
+  }, async (answers, condition, eligible) => {
+    assert.equal(calls.length, 3, "ranking must wait for all eligibility checks");
+    assert.deepEqual(answers, expectedAnswers);
+    assert.equal(condition, "Condition");
+    assert.deepEqual(eligible, [trials[0], trials[2]]);
+    return [
+      { rank: 1, explanation: "Best fit", trial: eligible[1] },
+      { rank: 2, explanation: "Potential fit", trial: eligible[0] },
+    ];
+  });
+  const result = await evaluateEligibilityAndRankTrials(prepared, [
+    { id: "prior", question: "Untrusted replacement text", answer: false },
+    { id: "age", question: "Untrusted replacement text", answer: 0 },
+  ], "Condition");
+  assert.deepEqual(result, {
+    studies: [{ ...trials[2], rank: 1, explanation: "Best fit" }, { ...trials[0], rank: 2, explanation: "Potential fit" }],
+    evaluatedCount: 3, excludedCount: 1,
+  });
+  assert.deepEqual(calls.map(text => text.split("\n")[0]), ["Trial: A", "Trial: B", "Trial: C"]);
+  assert.deepEqual(prepared, before);
+});
+
+test("empty and fully excluded trials skip ranking with accurate counts", async () => {
+  for (const count of [0, 2]) {
+    let checks = 0;
+    const { evaluateEligibilityAndRankTrials } = rankingSetup(async () => { checks++; return false; }, () => assert.fail("No eligible trials must skip ranking"));
+    const result = await evaluateEligibilityAndRankTrials({ trialSums: Array.from({ length: count }, (_, i) => trial(String(i))), questions: [] }, [], "Condition");
+    assert.deepEqual(result, { studies: [], evaluatedCount: count, excludedCount: count });
+    assert.equal(checks, count);
+  }
+});
+
+test("missing trial eligibility metadata is explicitly marked unknown", async () => {
+  const { evaluateEligibilityAndRankTrials } = rankingSetup(async (_answers, _condition, criterion) => {
+    assert.equal(criterion, "Trial: A\nMinimum age: Not provided\nMaximum age: Not provided\nSex: Not provided\nEligibility criteria: Not provided");
+    return false;
+  }, () => assert.fail("Excluded trial must skip ranking"));
+  await evaluateEligibilityAndRankTrials({ trialSums: [trial("A", { eligibility: { minimumAge: "", maximumAge: "", sex: "", criteria: "" } })], questions: [] }, [], "Condition");
+});
+
+test("eligibility is sequential and cancellation stops later checks and ranking", async () => {
+  const controller = new AbortController();
+  const pending = deferred();
+  let checks = 0;
+  const { evaluateEligibilityAndRankTrials } = rankingSetup(async () => { checks++; return pending.promise; }, () => assert.fail("Cancelled workflow must not rank"));
+  const result = evaluateEligibilityAndRankTrials({ trialSums: [trial("A"), trial("B")], questions: [] }, [], "Condition", { signal: controller.signal });
+  const rejection = assert.rejects(result, { name: "AbortError" });
+  await flush();
+  assert.equal(checks, 1);
+  controller.abort();
+  pending.resolve(true);
+  await rejection;
+  assert.equal(checks, 1);
+});
+
+test("cancellation before ranking is checked even after the last eligibility call", async () => {
+  const controller = new AbortController();
+  const { evaluateEligibilityAndRankTrials } = rankingSetup(async () => { controller.abort(); return true; }, () => assert.fail("Cancelled workflow must not rank"));
+  await assert.rejects(evaluateEligibilityAndRankTrials({ trialSums: [trial()], questions: [] }, [], "Condition", { signal: controller.signal }), { name: "AbortError" });
+});
+
+test("eligibility and ranking failures propagate without returning partial matches", async () => {
+  const failure = new Error("Provider failed");
+  for (const stage of ["eligibility", "ranking"]) {
+    let checks = 0;
+    const { evaluateEligibilityAndRankTrials } = rankingSetup(async () => {
+      checks++;
+      if (stage === "eligibility") throw failure;
+      return true;
+    }, async () => {
+      assert.equal(stage, "ranking");
+      throw failure;
+    });
+    await assert.rejects(evaluateEligibilityAndRankTrials({ trialSums: [trial("A"), trial("B")], questions: [] }, [], "Condition"), error => error === failure);
+    assert.equal(checks, stage === "eligibility" ? 1 : 2);
+  }
+});
+
+test("configured trial limits override caller page size and cap the shortlist", async () => {
+  process.env.TRIAL_SEARCH_LIMIT = "20";
+  process.env.TRIAL_SHORTLIST_LIMIT = "1";
+  const workflow = load("src/lib/trial-workflow.ts", {
+    "./clinical-trials": { searchTrialsByDiagnosis: async (params, options) => {
+      assert.equal(params.pageSize, 20);
+      assert.equal(params.diagnosis, input.diagnosis);
+      assert.equal(options.signal, controller.signal);
+      return retrieval(3);
+    } },
+    "./evaltools": {
+      evaluateTrial: async (_summary, title) => ({ applicableness: scores[Number(title.split(" ")[1])] }),
+      criterionFinder: async criterion => {
+        assert.match(criterion, /Trial: NCT1/);
+        assert.doesNotMatch(criterion, /Trial: NCT0|Trial: NCT2/);
+        return { questions: [] };
+      },
+    },
+  });
+  const controller = new AbortController();
+  const result = await workflow.searchTrialsAndMakeQuestions({ ...input, pageSize: 999 }, { signal: controller.signal });
+  assert.deepEqual(result.trialSums.map(({ id }) => id), ["NCT1"]);
+});
+
+test("invalid trial limits fail before retrieval and inference", async () => {
+  const { TrialSearchError } = load("src/lib/clinical-trials.ts");
+  const workflow = load("src/lib/trial-workflow.ts", {
+    "./clinical-trials": { TrialSearchError, searchTrialsByDiagnosis: () => assert.fail("Invalid configuration must not retrieve") },
+    "./evaltools": {},
+  });
+  for (const [key, values] of [
+    ["TRIAL_SEARCH_LIMIT", ["9", "1001", "1.5", "invalid", ""]],
+    ["TRIAL_SHORTLIST_LIMIT", ["0", "1001", "1.5", "invalid", ""]],
+  ]) {
+    for (const value of values) {
+      process.env[key] = value;
+      await assert.rejects(workflow.searchTrialsAndMakeQuestions(input), error => error.status === 500 && error.message.includes(key));
+    }
+    delete process.env[key];
   }
 });

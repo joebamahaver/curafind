@@ -1,31 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
-import { createRequire } from "node:module";
-import ts from "typescript";
-
-const root = path.resolve(import.meta.dirname, "..");
-const require = createRequire(import.meta.url);
-
-function load(file, mocks = {}, cache = new Map()) {
-  let filename = path.resolve(root, file);
-  if (!fs.existsSync(filename)) filename = [".ts", ".tsx"].map(extension => filename + extension).find(fs.existsSync);
-  if (cache.has(filename)) return cache.get(filename);
-  const loadedModule = { exports: {} };
-  const code = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
-  }).outputText;
-  const localRequire = id => {
-    if (Object.hasOwn(mocks, id)) return mocks[id];
-    if (id.startsWith("@/")) return load("src/" + id.slice(2), mocks, cache);
-    if (id.startsWith(".")) return load(path.resolve(path.dirname(filename), id), mocks, cache);
-    return require(id);
-  };
-  new Function("require", "module", "exports", code)(localRequire, loadedModule, loadedModule.exports);
-  cache.set(filename, loadedModule.exports);
-  return loadedModule.exports;
-}
+import { load } from "./helpers/load.mjs";
 
 const input = { diagnosis: "Example", zipCode: "64108", travelDistanceMiles: 50 };
 const zipResponse = { places: [{ latitude: "39.0837", longitude: "-94.5868", "place name": "Kansas City", "state abbreviation": "MO" }] };
@@ -53,7 +28,7 @@ test("ZIP lookup happens first and the trial query applies a radius in miles bef
   assert.equal(calls.length, 2);
   assert.deepEqual(result.locationFilter, { zipCode: "64108", travelDistanceMiles: 25.5, latitude: 39.0837, longitude: -94.5868, city: "Kansas City", state: "MO" });
   assert.equal(new URL(result.requestUrl).searchParams.get("filter.geo"), "distance(39.0837,-94.5868,25.5mi)");
-  assert.deepEqual(result.studies, []);
+  assert.deepEqual(result.trialSums, []);
 });
 
 test("ZIP leading zeros are retained and malformed locations fail before fetching", async () => {
@@ -103,7 +78,7 @@ test("cancellation during ZIP resolution stops before trial retrieval", async ()
 test("the trials HTTP route requires location before dispatching the workflow", async () => {
   const calls = [];
   const { POST } = load("src/app/api/trials/route.ts", {
-    "@/lib/trial-workflow": { searchTrialsAndMakeQuestions: async search => { calls.push(search); return { studies: [] }; } },
+    "@/lib/trial-workflow": { searchTrialsAndMakeQuestions: async search => { calls.push(search); return { trialSums: [], questions: [] }; } },
   });
   const originalError = console.error;
   console.error = () => {};

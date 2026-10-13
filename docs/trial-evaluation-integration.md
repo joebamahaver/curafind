@@ -133,5 +133,5 @@ fixtures must use `studies`.
 Check trial-only, research-only, and combined searches; question rendering;
 typed and unknown answers; ranking and answer editing; empty results; branch
 failures; and cancellation followed by another search. Check desktop and mobile
-layouts. The existing trial workflow fixtures still need migration from the
-old retrieval field name before they can validate the current contract.
+layouts. The trial workflow fixtures use the current retrieval contract. See
+[testing details](./testing.md) for the evaluator and API regression suites.
