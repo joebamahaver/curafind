@@ -266,7 +266,7 @@ test("empty ranking skips inference", async () => {
   assert.equal(api.calls.length, 0);
 });
 
-test("local evaluators work without cloud keys and do not consume the cloud ranking rotation", async () => {
+test("local evaluators work without cloud keys and ranking uses Gemini", async () => {
   await withEnv({ GROQ_API_KEY: undefined, GEMINI_API_KEY: undefined, CEREBRAS_API_KEY: undefined }, async () => {
     const api = setup(({ transport, input }) => transport === "decisions"
       ? input.abstract ? { applicableness: 2, efficacy: 2 } : input.answers ? { eligible: 1 } : { applicableness: 2 }
@@ -276,7 +276,20 @@ test("local evaluators work without cloud keys and do not consume the cloud rank
     await api.evaluateEligibility([], "Condition", "Criteria");
     await api.rankTrials([], "Condition", [trial()]);
     assert.deepEqual(api.calls.map(call => call.transport), ["decisions", "decisions", "decisions", "strands"]);
-    assert.equal(api.calls[3].config.model.getConfig().modelId, "openai/gpt-oss-20b");
+    assert.equal(api.calls[3].config.model.getConfig().modelId, "gemini-3.1-flash-lite");
+  });
+});
+
+test("questions and repeated rankings use Gemini even when other provider keys are configured", async () => {
+  await withEnv({ GEMINI_API_KEY: "mock-gemini", GROQ_API_KEY: "mock-groq", CEREBRAS_API_KEY: "mock-cerebras" }, async () => {
+    const api = setup(({ input }) => input.criterion !== undefined
+      ? { questions: [] }
+      : { trials: [{ trialId: "NCT00000001", explanation: "Reason", treatment: null }] });
+    await api.criterionFinder("Criteria", "Condition");
+    await api.rankTrials([], "Condition", [trial()]);
+    await api.rankTrials([], "Condition", [trial()]);
+    assert.deepEqual(api.calls.map(call => call.config.model.getConfig().modelId), Array(3).fill("gemini-3.1-flash-lite"));
+    assert.equal(new Set(api.calls.map(call => call.agent)).size, 3);
   });
 });
 

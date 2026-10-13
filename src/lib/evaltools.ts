@@ -1,46 +1,14 @@
-import { Agent, type Model } from "@strands-agents/sdk";
-import { OpenAIModel } from "@strands-agents/sdk/models/openai";
+import { Agent } from "@strands-agents/sdk";
 import { z } from "zod";
 import type { TrialSummary } from "./trial-evaluation-types";
 import { GoogleModel } from "@strands-agents/sdk/models/google";
 import { createLocalDecisionModel } from "./local-decision-model";
 
-// Cloud adapters are constructed only when a cloud function runs. Importing
-// evaltools for local scoring must not require Groq or Gemini credentials.
-let google: GoogleModel | undefined;
-function getQuestionModel() {
-  return google ??= new GoogleModel({ modelId: "gemini-3.1-flash-lite" });
-}
-
-const models: Array<{ provider: string; create: () => Model }> = [
-  {
-    provider: "Groq",
-    create: () => new OpenAIModel({
-      api: "chat", modelId: "openai/gpt-oss-20b", apiKey: process.env.GROQ_API_KEY,
-      clientConfig: { baseURL: "https://api.groq.com/openai/v1" },
-      params: { reasoning_effort: "low", parallel_tool_calls: false },
-    }),
-  },
-];
-if (process.env.CEREBRAS_API_KEY) {
-  models.push({
-    provider: "Cerebras",
-    create: () => new OpenAIModel({
-      api: "chat", modelId: "qwen-3.8-27b", apiKey: process.env.CEREBRAS_API_KEY,
-      clientConfig: { baseURL: "https://api.cerebras.ai/v1" },
-      params: { reasoning_effort: "low", parallel_tool_calls: false },
-    }),
-  });
-}
-models.push({ provider: "Google", create: getQuestionModel });
-let cursor = 0;
-
-function getModel(): Model {
-  const selected = models[cursor];
-  cursor = (cursor + 1) % models.length;
-  const model = selected.create();
-  console.info(`[evaltools] Using ${selected.provider}: ${model.getConfig().modelId}`);
-  return model;
+// Construct the shared Gemini adapter only when a language-generation step
+// runs, so importing local decision evaluators does not require cloud keys.
+let languageModel: GoogleModel | undefined;
+function getLanguageModel() {
+  return languageModel ??= new GoogleModel({ modelId: "gemini-3.1-flash-lite" });
 }
 
 const scoreSchema = z.object({
@@ -127,7 +95,7 @@ export async function criterionFinder(
   condition: string,
 ) {
   const evaluator = new Agent({
-    model: getQuestionModel(),
+    model: getLanguageModel(),
     systemPrompt: `
 Generate questions for the user based on the supplied eligibility criteria.
 
@@ -204,7 +172,7 @@ export async function rankTrials(
   const rankingSchema = z.object({
     trials: z.array(rankedTrialSchema.extend({ trialId: z.enum(expectedIds) })).length(trials.length),
   });
-  const model = getModel();
+  const model = getLanguageModel();
   const systemPrompt = `
 Rank the supplied trials from strongest to weakest potential fit
 for the user's condition and answers.

@@ -66,7 +66,7 @@ function route(endpoint, evaluate) {
 
 for (const endpoint of endpoints) {
   test(`POST /api/${endpoint.path} validates and normalizes input and returns its public shape`, async () => {
-    await withEnv({ GROQ_API_KEY: "test-key" }, async () => {
+    await withEnv({ GEMINI_API_KEY: "test-key" }, async () => {
       const req = request(endpoint.input);
       const calls = [];
       const { POST } = route(endpoint, async (...args) => { calls.push(args); return endpoint.result; });
@@ -80,7 +80,7 @@ for (const endpoint of endpoints) {
   });
 
   test(`POST /api/${endpoint.path} rejects malformed JSON and invalid input before checking credentials`, async () => {
-    await withEnv({ GROQ_API_KEY: undefined }, async () => {
+    await withEnv({ GEMINI_API_KEY: undefined }, async () => {
       const { POST } = route(endpoint, () => assert.fail("Invalid requests must not invoke evaluation"));
       await expectResponse(await POST(request("{", true)), 400, { error: "Request body must be valid JSON." });
       for (const input of [null, [], {}, { ...endpoint.input, condition: "  " }, { ...endpoint.input, condition: 42 }]) {
@@ -92,21 +92,21 @@ for (const endpoint of endpoints) {
 
   test(`POST /api/${endpoint.path} applies credentials only to cloud-dependent paths`, async () => {
     for (const key of [undefined, ""]) {
-      await withEnv({ GROQ_API_KEY: key }, async () => {
+      await withEnv({ GEMINI_API_KEY: key }, async () => {
         const local = endpoint.path === "trialeval" || endpoint.path === "eligibility";
         const { POST } = route(endpoint, () => {
           if (!local) assert.fail("Missing cloud credentials must not invoke evaluation");
           return endpoint.result;
         });
         await expectResponse(await POST(request(endpoint.input)), local ? 200 : 500,
-          local ? endpoint.response : { error: "GROQ_API_KEY is not configured." });
+          local ? endpoint.response : { error: "GEMINI_API_KEY is not configured." });
       });
     }
   });
 
   test(`POST /api/${endpoint.path} maps evaluator failures to a retryable 502 without exposing details`, async t => {
     t.mock.method(console, "error", () => {});
-    await withEnv({ GROQ_API_KEY: "test-key" }, async () => {
+    await withEnv({ GEMINI_API_KEY: "test-key" }, async () => {
       const { POST } = route(endpoint, () => { throw new Error("private provider diagnostic"); });
       await expectResponse(await POST(request(endpoint.input)), 502, {
         error: endpoint.path === "trialeval" ? "Trial evaluation failed. Please retry." : "Evaluation failed. Please retry.",
@@ -117,7 +117,7 @@ for (const endpoint of endpoints) {
 
 test("trial endpoint forwards explicit trial conditions and rejects malformed arrays", async () => {
   const endpoint = endpoints[0];
-  await withEnv({ GROQ_API_KEY: "test-key" }, async () => {
+  await withEnv({ GEMINI_API_KEY: "test-key" }, async () => {
     const calls = [];
     const { POST } = route(endpoint, async (...args) => { calls.push(args); return endpoint.result; });
     await expectResponse(await POST(request({ ...endpoint.input, trial_conditions: ["A", "B"] })), 200);
@@ -131,7 +131,7 @@ test("trial endpoint forwards explicit trial conditions and rejects malformed ar
 
 test("standalone eligibility accepts all supported answer values, including no answers", async () => {
   const endpoint = endpoints[2];
-  await withEnv({ GROQ_API_KEY: "test-key" }, async () => {
+  await withEnv({ GEMINI_API_KEY: "test-key" }, async () => {
     const { POST } = route(endpoint, async received => {
       assert.deepEqual(received.map(item => item.answer), ["", 0, false, null]);
       return true;
@@ -143,7 +143,7 @@ test("standalone eligibility accepts all supported answer values, including no a
 });
 
 test("standalone eligibility and ranking reject blank questions and unsupported answer values", async () => {
-  await withEnv({ GROQ_API_KEY: "test-key" }, async () => {
+  await withEnv({ GEMINI_API_KEY: "test-key" }, async () => {
     for (const endpoint of [endpoints[2], endpoints[3]]) {
       const { POST } = route(endpoint, () => assert.fail("Invalid answers must not invoke evaluation"));
       for (const answers of [[{ question: " ", answer: null }], [{ question: "Q", answer: {} }], [{ question: "Q", answer: [] }], [{ question: "Q" }]]) {
@@ -155,7 +155,7 @@ test("standalone eligibility and ranking reject blank questions and unsupported 
 
 test("ranking rejects duplicate IDs and invalid trial metadata before inference", async () => {
   const endpoint = endpoints[3];
-  await withEnv({ GROQ_API_KEY: "test-key" }, async () => {
+  await withEnv({ GEMINI_API_KEY: "test-key" }, async () => {
     const { POST } = route(endpoint, () => assert.fail("Invalid trials must not invoke evaluation"));
     for (const trials of [[trial(), trial()], [trial("", {})], [trial("A", { applicableness: 101 })], [trial("A", { eligibility: {} })]]) {
       await expectResponse(await POST(request({ ...endpoint.input, trials })), 400);
@@ -171,7 +171,7 @@ test("ranking keeps extra top-level and nested metadata through validation", asy
     interventions: [{ ...trial().interventions[0], description: "Full description" }],
     locations: [{ ...trial().locations[0], contact: "Study team" }],
   });
-  await withEnv({ GROQ_API_KEY: "test-key" }, async () => {
+  await withEnv({ GEMINI_API_KEY: "test-key" }, async () => {
     const { POST } = route(endpoint, async (_answers, _condition, trials) => {
       assert.deepEqual(trials, [enriched]);
       return [{ rank: 1, explanation: "Potential fit", treatment: "Example therapy", trial: trials[0] }];
@@ -193,7 +193,7 @@ test("combined ranking requires unique IDs and answers matching prepared questio
     { answers: [{ ...combinedAnswers[2], answer: false }] },
     { condition: "x".repeat(201) },
   ];
-  await withEnv({ GROQ_API_KEY: "test-key" }, async () => {
+  await withEnv({ GEMINI_API_KEY: "test-key" }, async () => {
     const { POST } = route(endpoint, () => assert.fail("Invalid prepared answers must not invoke evaluation"));
     for (const overrides of invalid) await expectResponse(await POST(request({ ...endpoint.input, ...overrides })), 400);
   });
@@ -201,7 +201,7 @@ test("combined ranking requires unique IDs and answers matching prepared questio
 
 test("combined ranking accepts omitted answers and null for each question type", async () => {
   const endpoint = endpoints[4];
-  await withEnv({ GROQ_API_KEY: "test-key" }, async () => {
+  await withEnv({ GEMINI_API_KEY: "test-key" }, async () => {
     for (const answers of [[], combinedAnswers.map(answer => ({ ...answer, answer: null }))]) {
       const { POST } = route(endpoint, async (_prepared, received) => {
         assert.deepEqual(received, answers);
@@ -214,7 +214,7 @@ test("combined ranking accepts omitted answers and null for each question type",
 
 test("shared evaluation response passes schema-transformed input to its evaluator", async () => {
   const { evaluationResponse } = load("src/lib/evaluation-api.ts");
-  await withEnv({ GROQ_API_KEY: "test-key" }, async () => {
+  await withEnv({ GEMINI_API_KEY: "test-key" }, async () => {
     const schema = z.object({ count: z.string().transform(Number) });
     const response = await evaluationResponse(request({ count: "3", ignored: true }), schema, async input => {
       assert.deepEqual(input, { count: 3 });
@@ -226,7 +226,7 @@ test("shared evaluation response passes schema-transformed input to its evaluato
 
 test("combined ranking returns 200 with every eligible trial when the model repeatedly returns an invalid list", async t => {
   t.mock.method(console, "warn", () => {});
-  await withEnv({ GROQ_API_KEY: "test-key", CEREBRAS_API_KEY: undefined }, async () => {
+  await withEnv({ GEMINI_API_KEY: "test-key", CEREBRAS_API_KEY: undefined }, async () => {
     let rankingCalls = 0;
     const eligibilityCalls = [];
     class MockModel {

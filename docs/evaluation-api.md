@@ -22,9 +22,6 @@ DECISIONS_MODEL=tev1:4b
 DECISIONS_TIMEOUT_MS=120000
 # Still needed for cloud question generation and ranking:
 GEMINI_API_KEY=your_gemini_api_key
-GROQ_API_KEY=your_groq_api_key
-# Optional: adds Cerebras to the ranking rotation.
-CEREBRAS_API_KEY=your_cerebras_api_key
 ```
 
 The three local settings default to these values when omitted. The base URL
@@ -57,10 +54,9 @@ The contract follows the official [Ollama System One API](https://docs.ollama.co
 
 ## Remaining cloud evaluation
 
-`criterionFinder` always uses Google `gemini-3.1-flash-lite`. `rankTrials`
-rotates through Groq `openai/gpt-oss-20b`, optional Cerebras `qwen-3.8-27b`,
-and Google `gemini-3.1-flash-lite`. Cloud models are constructed lazily, so local
-functions do not require cloud credentials. Only ranking advances this rotation.
+`criterionFinder` and `rankTrials` both use Google `gemini-3.1-flash-lite`.
+The Gemini adapter is constructed lazily, so local functions do not require
+cloud credentials. Groq and Cerebras keys do not affect model selection.
 Each cloud invocation creates a fresh agent with validated structured output.
 
 Treatment extraction now happens in `rankTrials` alongside ranking: each item
@@ -68,10 +64,10 @@ has `treatment: string | null`, extracted from the supplied clinical-trial
 interventions and metadata. Research studies no longer extract or display a
 treatment field.
 
-`/api/trialeval`, `/api/eligibility`, and the drug Server Function have no
-Groq-key check. The cloud-dependent `/api/criterionfinder`, `/api/ranktrials`,
-and `/api/trials/rank` retain their existing Groq-key check. Question generation
-also needs `GEMINI_API_KEY`; ranking needs credentials for the selected provider.
+`/api/trialeval`, `/api/eligibility`, and the drug Server Function require no
+cloud key. The cloud-dependent `/api/criterionfinder`, `/api/ranktrials`,
+and `/api/trials/rank` check `GEMINI_API_KEY`. Prepared trial searches also need
+the Gemini key for question generation.
 
 ## Patient workflow endpoints
 
@@ -175,7 +171,7 @@ curl -i --max-time 120 http://localhost:3000/api/criterionfinder \
 ```
 
 Malformed JSON or invalid fields return 400. Cloud-dependent evaluation routes return 500 when
-their required Groq key is absent. All evaluation routes return 502 for evaluator
+their required Gemini key is absent. All evaluation routes return 502 for evaluator
 failures, including local Ollama connection, model, and response errors. `/api/trials`
 preserves `TrialSearchError` status codes, including 400 for invalid input and
 500 for invalid configured limits; other failures return 502. Responses use

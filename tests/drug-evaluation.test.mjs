@@ -149,6 +149,13 @@ test("result cards render only the selected top results with source links and bo
     assert.match(html, /data-slot="card-title"[^>]*>[\s\S]*?Study 3/);
     assert.match(html, /<p class="whitespace-pre-wrap[^>]*>3<\/p>/);
     assert.doesNotMatch(html, /Read abstract/);
+    const fractional = { ...data, topArticles: [{ ...data.topArticles[0], applicableness: 95.5, efficacy: 79.49 }] };
+    const rounded = renderToStaticMarkup(createElement(DrugResearchResults, { result: fractional, activeIndex: 0 }));
+    assert.match(rounded, /tabular-nums">96<span/);
+    assert.match(rounded, /tabular-nums">79<span/);
+    assert.doesNotMatch(rounded, /95\.5|79\.49/);
+    assert.equal(fractional.topArticles[0].applicableness, 95.5);
+    assert.equal(fractional.topArticles[0].efficacy, 79.49);
   });
 });
 

@@ -30,14 +30,15 @@ test inputs. Some source functions still log their model selection during tests.
 `tests/helpers/load.mjs` transpiles real TypeScript modules in memory and resolves
 relative imports and `@/` aliases. It substitutes only explicitly supplied mocks;
 Zod validation and application logic run normally. Each top-level `load()` gets a
-fresh module cache so the model rotation does not leak between test cases. Use
+fresh module cache so the lazy Gemini adapter does not leak between test cases. Use
 `withEnv()` to restore environment variables after credential/configuration
 tests. Keep tests that mutate the environment sequential within each file.
 `tests/helpers/fixtures.mjs` supplies full trial metadata and typed questions.
 
 Local evaluator tests run the real decision adapter with a mocked HTTP boundary.
 Question generation and ranking use SDK mocks. They check that local evaluation
-neither constructs cloud models nor consumes the cloud ranking rotation.
+does not construct cloud models. Questions and repeated rankings use Gemini
+3.1 Flash Lite even when Groq and Cerebras keys are configured.
 Prepared searches use `trialSums`; final patient ranking responses use `studies`
 and include the nullable treatment extracted during ranking. Ranking regressions
 cover request-specific ID/count constraints, correction with a fresh agent,

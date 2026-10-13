@@ -28,7 +28,9 @@ Results sort by descending `applicableness`, then descending `efficacy` to break
 ties. `articles` contains all successful evaluations; `topArticles` contains up
 to `DRUG_DISPLAY_LIMIT` studies for the browser. `ResearchResultsReader` places
 them in the Research tab and displays one study at a time with Previous/Next
-controls. The raw results JSON retains all successful `articles`.
+controls. Displayed applicability and efficacy scores are rounded to the nearest
+integer. Sorting and raw results JSON retain the original fractional scores.
+The raw results JSON retains all successful `articles`.
 
 Local scoring is configured through `OLLAMA_BASE_URL`, `DECISIONS_MODEL`, and
 `DECISIONS_TIMEOUT_MS`; it requires no Groq or Gemini key. See

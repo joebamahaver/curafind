@@ -41,15 +41,15 @@ CuraFind supports five evaluation steps:
 | `rankTrials` | An ordered list of trial IDs, explanations, and extracted treatment names. The application checks that every supplied trial appears exactly once and reattaches its original metadata. |
 | `evaluateStudy` | Local applicability and estimated efficacy scores from an article abstract. |
 
-Trial ranking rotates through Groq, optional Cerebras, and Google model adapters.
-Question generation uses Google. The three local evaluators default to Ollama
+Trial ranking and question generation use Gemini 3.1 Flash Lite through the
+Strands Google model adapter. The three local evaluators default to Ollama
 `tev1:4b` through `/v1/systemone`; see [configuration and API details](./docs/evaluation-api.md).
 
 Strands provides the agent invocation and structured-output interface; the
 TypeScript application controls retrieval, batching, selection, and the order
 of evaluation steps. Research APIs are called directly by application code,
 rather than exposed as agent tools. The remaining cloud provider configuration calls
-Groq, Cerebras, and Google directly.
+Google directly and requires `GEMINI_API_KEY`.
 
 ![flow diagram](./public/curafindflow.png)
 

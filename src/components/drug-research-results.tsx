@@ -37,11 +37,11 @@ export function DrugResearchResults({ result, activeIndex }: { result: DrugResea
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg bg-primary/5 p-3">
                 <p className="text-xs text-muted-foreground">Applicability</p>
-                <p className="mt-1 text-lg font-semibold tabular-nums">{article.applicableness}<span className="text-xs font-normal text-muted-foreground"> / 100</span></p>
+                <p className="mt-1 text-lg font-semibold tabular-nums">{Math.round(article.applicableness)}<span className="text-xs font-normal text-muted-foreground"> / 100</span></p>
               </div>
               <div className="rounded-lg bg-primary/5 p-3">
                 <p className="text-xs text-muted-foreground">Estimated efficacy</p>
-                <p className="mt-1 text-lg font-semibold tabular-nums">{article.efficacy}<span className="text-xs font-normal text-muted-foreground"> / 100</span></p>
+                <p className="mt-1 text-lg font-semibold tabular-nums">{Math.round(article.efficacy)}<span className="text-xs font-normal text-muted-foreground"> / 100</span></p>
               </div>
             </div>
           </CardContent>
