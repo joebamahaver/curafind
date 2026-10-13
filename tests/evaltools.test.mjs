@@ -112,10 +112,6 @@ const invalidOutputs = [
   ["questions: missing list", "criterionFinder", {}],
   ["eligibility: string boolean", "evaluateEligibility", { eligible: "false" }],
   ["eligibility: missing boolean", "evaluateEligibility", {}],
-  ["ranking: missing explanation", "rankTrials", { trials: [{ trialId: "NCT00000001" }] }],
-  ["ranking: missing treatment", "rankTrials", { trials: [{ trialId: "NCT00000001", explanation: "Reason" }] }],
-  ["ranking: empty treatment", "rankTrials", { trials: [{ trialId: "NCT00000001", explanation: "Reason", treatment: "" }] }],
-  ["ranking: missing list", "rankTrials", {}],
 ];
 const invokeFunction = (api, name) => {
   if (name === "evaluateTrial") return runTrial(api);
@@ -159,17 +155,110 @@ test("ranking uses returned order, one-based ranks and original metadata without
   assert.match(api.calls[0].config.systemPrompt, /Extract the main treatment/);
 });
 
-for (const [label, ids, message] of [
-  ["omitted", ["A"], /every trial exactly once/],
-  ["duplicate", ["A", "A"], /every trial exactly once/],
-  ["extra", ["A", "B", "C"], /every trial exactly once/],
-  ["unknown", ["A", "C"], /unknown trial ID/],
+for (const [label, ids] of [
+  ["omitted", ["A"]],
+  ["duplicate", ["A", "A"]],
+  ["extra", ["A", "B", "C"]],
+  ["unknown", ["A", "C"]],
 ]) {
-  test(`ranking rejects ${label} trial IDs`, async () => {
+  test(`ranking recovers from persistently ${label} trial IDs with a complete fallback`, async t => {
+    t.mock.method(console, "warn", () => {});
     const api = setup(() => ({ trials: ids.map(trialId => ({ trialId, explanation: "Reason", treatment: null })) }));
-    await assert.rejects(api.rankTrials([], "Condition", [trial("A"), trial("B")]), message);
+    const trials = [trial("A", { applicableness: 60 }), trial("B", { applicableness: 90 })];
+    const before = structuredClone(trials);
+    const result = await api.rankTrials([], "Condition", trials);
+    assert.equal(api.calls.length, 2, "invalid rankings should trigger exactly one correction attempt");
+    assert.deepEqual(result.map(({ rank, trial }) => [rank, trial.id]), [[1, "B"], [2, "A"]]);
+    assert.equal(result[0].trial, trials[1]);
+    assert.equal(result[1].trial, trials[0]);
+    assert.equal(result.every(item => item.explanation.includes("ordered by its applicability score")), true);
+    assert.equal(result.every(item => item.treatment === "Example therapy"), true);
+    assert.deepEqual(trials, before, "fallback must not mutate original trial metadata");
   });
 }
+
+test("ranking correction uses a fresh agent with the same model and unchanged input", async t => {
+  t.mock.method(console, "warn", () => {});
+  let attempt = 0;
+  const api = setup(() => ({ trials: ++attempt === 1
+    ? [{ trialId: "A", explanation: "Incomplete", treatment: null }]
+    : [
+      { trialId: "B", explanation: "Corrected best fit", treatment: "Drug B" },
+      { trialId: "A", explanation: "Corrected next fit", treatment: null },
+    ] }));
+  const result = await api.rankTrials(answers, "Condition", [trial("A"), trial("B")]);
+  assert.deepEqual(result.map(({ rank, explanation, treatment, trial }) => [rank, trial.id, explanation, treatment]), [
+    [1, "B", "Corrected best fit", "Drug B"], [2, "A", "Corrected next fit", null],
+  ]);
+  assert.equal(api.calls.length, 2);
+  assert.notEqual(api.calls[0].agent, api.calls[1].agent);
+  assert.equal(api.calls[0].config.model, api.calls[1].config.model);
+  assert.deepEqual(api.calls[0].input, api.calls[1].input);
+  assert.match(api.calls[1].config.systemPrompt, /previous result failed validation/);
+});
+
+test("ranking schema constrains the number of entries and the allowed IDs per request", async () => {
+  const api = setup(() => ({ trials: [
+    { trialId: "A", explanation: "Reason", treatment: null },
+    { trialId: "B", explanation: "Reason", treatment: null },
+  ] }));
+  await api.rankTrials([], "Condition", [trial("A"), trial("B")]);
+  const schema = api.calls[0].config.structuredOutputSchema;
+  const item = trialId => ({ trialId, explanation: "Reason", treatment: null });
+  assert.equal(schema.safeParse({ trials: [item("A"), item("B")] }).success, true);
+  assert.equal(schema.safeParse({ trials: [item("A")] }).success, false);
+  assert.equal(schema.safeParse({ trials: [item("A"), item("C")] }).success, false);
+});
+
+for (const [label, output] of [
+  ["missing explanation", { trials: [{ trialId: "A", treatment: null }] }],
+  ["missing treatment", { trials: [{ trialId: "A", explanation: "Reason" }] }],
+  ["empty treatment", { trials: [{ trialId: "A", explanation: "Reason", treatment: "" }] }],
+  ["missing list", {}],
+  ["missing output", undefined],
+]) {
+  test(`ranking handles ${label} after one correction attempt`, async t => {
+    t.mock.method(console, "warn", () => {});
+    const api = setup(() => output);
+    const trials = [trial("A", { interventions: [] })];
+    const result = await api.rankTrials([], "Condition", trials);
+    assert.equal(api.calls.length, 2);
+    assert.equal(result[0].trial, trials[0]);
+    assert.equal(result[0].treatment, null);
+    assert.match(result[0].explanation, /could not return a complete valid list/);
+  });
+}
+
+test("fallback ties preserve input order and treatment names come only from original interventions", async t => {
+  t.mock.method(console, "warn", () => {});
+  const trials = [
+    trial("A", { applicableness: 80, interventions: [{ name: " Drug A ", type: "DRUG" }, { name: "Drug A", type: "DRUG" }, { name: "Therapy B", type: "OTHER" }, { name: " ", type: "OTHER" }] }),
+    trial("B", { applicableness: 80, interventions: [] }),
+  ];
+  const api = setup(() => ({ trials: [{ trialId: "unknown", explanation: "Invented", treatment: "Invented drug" }] }));
+  const result = await api.rankTrials([], "Condition", trials);
+  assert.deepEqual(result.map(item => item.trial.id), ["A", "B"]);
+  assert.deepEqual(result.map(item => item.treatment), ["Drug A; Therapy B", null]);
+  assert.equal(result.some(item => item.explanation === "Invented"), false);
+});
+
+test("duplicate input trial IDs are rejected before model invocation", async () => {
+  const api = setup(() => assert.fail("Duplicate input IDs must not invoke an agent"));
+  await assert.rejects(api.rankTrials([], "Condition", [trial("A"), trial("A")]), /Trial IDs must be unique/);
+  assert.equal(api.calls.length, 0);
+});
+
+test("a provider failure during correction propagates rather than becoming a fallback", async t => {
+  t.mock.method(console, "warn", () => {});
+  const failure = new Error("Provider unavailable");
+  let calls = 0;
+  const api = setup(() => {
+    if (++calls === 1) return { trials: [] };
+    throw failure;
+  });
+  await assert.rejects(api.rankTrials([], "Condition", [trial()]), error => error === failure);
+  assert.equal(api.calls.length, 2);
+});
 
 test("empty ranking skips inference", async () => {
   const api = setup(() => assert.fail("Empty trials must not invoke an agent"));

@@ -223,3 +223,47 @@ test("shared evaluation response passes schema-transformed input to its evaluato
     await expectResponse(response, 200, { count: 3 });
   });
 });
+
+test("combined ranking returns 200 with every eligible trial when the model repeatedly returns an invalid list", async t => {
+  t.mock.method(console, "warn", () => {});
+  await withEnv({ GROQ_API_KEY: "test-key", CEREBRAS_API_KEY: undefined }, async () => {
+    let rankingCalls = 0;
+    const eligibilityCalls = [];
+    class MockModel {
+      constructor(config) { this.config = config; }
+      getConfig() { return this.config; }
+    }
+    class MockAgent {
+      async invoke(payload) {
+        rankingCalls++;
+        assert.deepEqual(JSON.parse(payload).trials.map(({ id }) => id), ["A", "B"]);
+        return { structuredOutput: { trials: [{ trialId: "C", explanation: "Invalid ranking", treatment: "Invented therapy" }] } };
+      }
+    }
+    const { POST } = load("src/app/api/trials/rank/route.ts", {
+      "@strands-agents/sdk": { Agent: MockAgent },
+      "@strands-agents/sdk/models/openai": { OpenAIModel: MockModel },
+      "@strands-agents/sdk/models/google": { GoogleModel: MockModel },
+      "./local-decision-model": { createLocalDecisionModel: () => ({ invoke: async (state, _questions, options) => {
+        assert.equal(options.signal, req.signal);
+        eligibilityCalls.push(state.criterion);
+        return { eligible: state.criterion.startsWith("Trial: C\n") ? 0 : 1 };
+      } }) },
+    });
+    const trials = [trial("A", { applicableness: 60 }), trial("B", { applicableness: 90 }), trial("C", { applicableness: 100 })];
+    const req = request({ condition: "Condition", prepared_trials: { trialSums: trials, questions }, answers: [] });
+    const body = await expectResponse(await POST(req), 200);
+    assert.equal(rankingCalls, 2);
+    assert.equal(eligibilityCalls.length, 3);
+    assert.equal(body.evaluatedCount, 3);
+    assert.equal(body.excludedCount, 1);
+    assert.deepEqual(body.studies.map(({ id, rank }) => [id, rank]), [["B", 1], ["A", 2]]);
+    for (const study of body.studies) {
+      const original = trials.find(({ id }) => id === study.id);
+      assert.deepEqual(study.eligibility, original.eligibility);
+      assert.deepEqual(study.interventions, original.interventions);
+      assert.equal(study.treatment, "Example therapy");
+      assert.match(study.explanation, /ordered by its applicability score/);
+    }
+  });
+});

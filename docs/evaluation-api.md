@@ -150,8 +150,18 @@ route wraps it in `{ eligible }`.
 Standalone ranking accepts complete `TrialSummary` objects, including
 `applicableness` from 0 to 100, and preserves additional metadata. Trial IDs must
 be unique. Empty input skips model invocation and returns `{ "trials": [] }`
-after the route's key check. Every supplied trial must appear exactly once in
-model output; the library attaches one-based ranks, a nullable treatment name, and original trial objects.
+after the route's key check. The model's output schema restricts IDs to the
+supplied trials and requires the correct list length. The library also checks
+uniqueness, retries an invalid result once with a fresh agent and correction
+instructions, and attaches one-based ranks, a nullable treatment name, and
+original trial objects.
+
+If both returned lists fail validation, every supplied trial is returned in
+descending applicability order (ties keep input order). Each explanation
+identifies this fallback. Treatment names then come only from recorded
+interventions, separated by semicolons, or are null. Invalid model explanations
+and treatment extractions are discarded. This fallback never introduces a trial
+excluded by the eligibility step. Transport/provider failures still return 502.
 
 ## Quick curl example and errors
 

@@ -67,7 +67,10 @@ Eligibility is checked sequentially against each shortlisted trial's own
 criteria. `evaluateEligibility` returns a boolean: a clear conflict excludes a
 trial, while missing or uncertain information remains a potential match. One
 `rankTrials` call orders remaining trials and supplies explanations. Every
-supplied trial must appear exactly once, with original metadata preserved.
+supplied trial appears exactly once, with original metadata preserved. An invalid
+model list is retried once; if the second list is also invalid, the library
+returns all eligible trials in applicability order with an explicit fallback
+explanation and only recorded intervention names as treatments.
 No eligible trials skips the ranking model call.
 
 Final `studies` contain `rank`, `explanation`, and `treatment` (string or null).

@@ -39,7 +39,11 @@ Local evaluator tests run the real decision adapter with a mocked HTTP boundary.
 Question generation and ranking use SDK mocks. They check that local evaluation
 neither constructs cloud models nor consumes the cloud ranking rotation.
 Prepared searches use `trialSums`; final patient ranking responses use `studies`
-and include the nullable treatment extracted during ranking.
+and include the nullable treatment extracted during ranking. Ranking regressions
+cover request-specific ID/count constraints, correction with a fresh agent,
+complete applicability fallback, metadata preservation, and the combined route
+returning 200 without reintroducing excluded trials. Provider failures remain
+errors rather than triggering fallback.
 
 These tests verify application behavior with controlled outputs. They do not
 measure model quality or exercise a real provider or browser interaction.
