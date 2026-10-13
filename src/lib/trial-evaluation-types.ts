@@ -39,6 +39,7 @@ export interface TrialSummary {
 export interface RankedTrialSummary extends TrialSummary {
   rank: number;
   explanation: string;
+  treatment: string | null;
 }
 
 export interface TrialSearchResult {

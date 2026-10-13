@@ -47,8 +47,8 @@ const endpoints = [
     path: "ranktrials", evaluator: "rankTrials",
     input: { answers, condition: "  Condition  ", trials: [trial()] },
     args: [normalizedAnswers, "Condition", [trial()]],
-    result: [{ rank: 1, explanation: "Potential fit", trial: trial() }],
-    response: { trials: [{ rank: 1, explanation: "Potential fit", trial: trial() }] },
+    result: [{ rank: 1, explanation: "Potential fit", treatment: "Example therapy", trial: trial() }],
+    response: { trials: [{ rank: 1, explanation: "Potential fit", treatment: "Example therapy", trial: trial() }] },
   },
   {
     path: "trials/rank", evaluator: "evaluateEligibilityAndRankTrials",
@@ -73,6 +73,8 @@ for (const endpoint of endpoints) {
       await expectResponse(await POST(req), 200, endpoint.response);
       assert.equal(calls.length, 1);
       assert.deepEqual(calls[0].slice(0, endpoint.args.length), endpoint.args);
+      if (endpoint.path === "trialeval") assert.equal(calls[0][4].signal, req.signal);
+      if (endpoint.path === "eligibility") assert.equal(calls[0][3].signal, req.signal);
       if (endpoint.path === "trials/rank") assert.equal(calls[0][3].signal, req.signal);
     });
   });
@@ -88,11 +90,16 @@ for (const endpoint of endpoints) {
     });
   });
 
-  test(`POST /api/${endpoint.path} reports a missing server key without invoking evaluation`, async () => {
+  test(`POST /api/${endpoint.path} applies credentials only to cloud-dependent paths`, async () => {
     for (const key of [undefined, ""]) {
       await withEnv({ GROQ_API_KEY: key }, async () => {
-        const { POST } = route(endpoint, () => assert.fail("Missing credentials must not invoke evaluation"));
-        await expectResponse(await POST(request(endpoint.input)), 500, { error: "GROQ_API_KEY is not configured." });
+        const local = endpoint.path === "trialeval" || endpoint.path === "eligibility";
+        const { POST } = route(endpoint, () => {
+          if (!local) assert.fail("Missing cloud credentials must not invoke evaluation");
+          return endpoint.result;
+        });
+        await expectResponse(await POST(request(endpoint.input)), local ? 200 : 500,
+          local ? endpoint.response : { error: "GROQ_API_KEY is not configured." });
       });
     }
   });
@@ -167,9 +174,9 @@ test("ranking keeps extra top-level and nested metadata through validation", asy
   await withEnv({ GROQ_API_KEY: "test-key" }, async () => {
     const { POST } = route(endpoint, async (_answers, _condition, trials) => {
       assert.deepEqual(trials, [enriched]);
-      return [{ rank: 1, explanation: "Potential fit", trial: trials[0] }];
+      return [{ rank: 1, explanation: "Potential fit", treatment: "Example therapy", trial: trials[0] }];
     });
-    await expectResponse(await POST(request({ ...endpoint.input, trials: [enriched] })), 200, { trials: [{ rank: 1, explanation: "Potential fit", trial: enriched }] });
+    await expectResponse(await POST(request({ ...endpoint.input, trials: [enriched] })), 200, { trials: [{ rank: 1, explanation: "Potential fit", treatment: "Example therapy", trial: enriched }] });
   });
 });
 

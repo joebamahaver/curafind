@@ -42,6 +42,7 @@ export async function evaluationResponse<T>(
   request: Request,
   schema: z.ZodType<T>,
   evaluate: (input: T) => Promise<unknown>,
+  options: { requireGroqKey?: boolean } = {},
 ) {
   const headers = { "Cache-Control": "no-store" };
   let body: unknown;
@@ -63,7 +64,7 @@ export async function evaluationResponse<T>(
     );
   }
 
-  if (!process.env.GROQ_API_KEY) {
+  if (options.requireGroqKey !== false && !process.env.GROQ_API_KEY) {
     return Response.json(
       { error: "GROQ_API_KEY is not configured." },
       { status: 500, headers },

@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { load } from "./helpers/load.mjs";
 import { trial, questions } from "./helpers/fixtures.mjs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 // These tests exercise default limits independently of local .env settings.
 let previousLimits;
@@ -169,106 +171,41 @@ test("cancellation prevents subsequent batches and question generation", async (
   assert.equal(questionCalls, 0);
 });
 
-test("parallel trial calls use the actual model rotation and a fresh agent for every evaluation", async () => {
-  const previous = process.env.CEREBRAS_API_KEY;
-  process.env.CEREBRAS_API_KEY = "mock-cerebras";
-  try {
-    const agents = [];
-    class MockModel {
-      constructor(config) { this.config = config; }
-      getConfig() { return this.config; }
-    }
-    class MockAgent {
-      constructor(config) { this.config = config; agents.push(this); }
-      async invoke(payload) {
-        const data = JSON.parse(payload);
-        return { structuredOutput: data.criterion !== undefined
-          ? { questions: [] }
-          : { applicableness: scores[Number(data.title.split(" ")[1])] } };
-      }
-    }
-    const { searchTrialsAndMakeQuestions } = load("src/lib/trial-workflow.ts", {
-      "./clinical-trials": { searchTrialsByDiagnosis: async () => retrieval() },
-      "@strands-agents/sdk": { Agent: MockAgent },
-      "@strands-agents/sdk/models/openai": { OpenAIModel: MockModel },
-      "@strands-agents/sdk/models/google": { GoogleModel: MockModel },
-      "./vicort": { vicort: "mock prompt" },
-    });
-    const result = await searchTrialsAndMakeQuestions(input);
-    const pool = ["openai/gpt-oss-20b", "qwen-3.8-27b", "gemini-3.1-flash-lite"];
-    assert.deepEqual(agents.map(agent => agent.config.model.getConfig().modelId), [...pool, ...pool, ...pool, pool[0], pool[2]]);
-    assert.equal(new Set(agents).size, 11);
-    assert.deepEqual(result.trialSums.map(({ id }) => id), ["NCT6", "NCT3", "NCT1"]);
-  } finally {
-    if (previous === undefined) delete process.env.CEREBRAS_API_KEY;
-    else process.env.CEREBRAS_API_KEY = previous;
+test("parallel trial scoring uses local decisions while question generation stays on Strands Google", async () => {
+  const calls = [];
+  class MockModel {
+    constructor(config) { this.config = config; }
+    getConfig() { return this.config; }
   }
-});
-
-test("Google incomplete-stream failures retry once with a fresh Groq agent and unchanged input", async () => {
-  const previous = process.env.CEREBRAS_API_KEY;
-  process.env.CEREBRAS_API_KEY = "mock-cerebras";
-  try {
-    const calls = [];
-    const google = "gemini-3.1-flash-lite";
-    const groq = "openai/gpt-oss-20b";
-    class MockModel {
-      constructor(config) { this.config = config; }
-      getConfig() { return this.config; }
+  class MockAgent {
+    constructor(config) { this.config = config; }
+    async invoke(payload) {
+      assert.equal(this.config.model.getConfig().modelId, "gemini-3.1-flash-lite");
+      assert.equal(typeof JSON.parse(payload).criterion, "string");
+      calls.push("questions");
+      return { structuredOutput: { questions: [] } };
     }
-    class MockGoogleModel extends MockModel {}
-
-    for (const scenario of ["recover", "retry-fails", "unrelated-error", "invalid-score"]) {
-      calls.length = 0;
-      const original = new Error(scenario === "unrelated-error"
-        ? "Mock provider unavailable"
-        : "Incomplete JSON segment at the end");
-      const fallbackFailure = new Error("Groq unavailable");
-      class MockAgent {
-        constructor(config) { this.config = config; }
-        async invoke(payload) {
-          const modelId = this.config.model.getConfig().modelId;
-          calls.push({ agent: this, modelId, payload });
-          if (modelId === google) {
-            if (scenario === "invalid-score") return { structuredOutput: { applicableness: 101 } };
-            throw original;
-          }
-          if (modelId === groq && JSON.parse(payload).title === "Target" && scenario === "retry-fails") {
-            throw fallbackFailure;
-          }
-          return { structuredOutput: { applicableness: 80 } };
-        }
-      }
-      const { evaluateTrial } = load("src/lib/evaltools.ts", {
-        "@strands-agents/sdk": { Agent: MockAgent },
-        "@strands-agents/sdk/models/openai": { OpenAIModel: MockModel },
-        "@strands-agents/sdk/models/google": { GoogleModel: MockGoogleModel },
-        "./vicort": { vicort: "mock prompt" },
-      });
-      await evaluateTrial("warmup", "Warmup", "condition", []);
-      await evaluateTrial("warmup", "Warmup", "condition", []);
-      const result = evaluateTrial("trial summary", "Target", "condition", ["trial condition"]);
-      if (scenario === "recover") {
-        assert.deepEqual(await result, { applicableness: 80 });
-      } else if (scenario === "retry-fails") {
-        await assert.rejects(result, error => error === fallbackFailure);
-      } else if (scenario === "unrelated-error") {
-        await assert.rejects(result, error => error === original);
-      } else {
-        await assert.rejects(result, error => error.name === "ZodError");
-      }
-      const attempts = calls.slice(2);
-      assert.deepEqual(attempts.map(call => call.modelId),
-        scenario === "recover" || scenario === "retry-fails" ? [google, groq] : [google]);
-      if (attempts.length === 2) {
-        assert.notEqual(attempts[0].agent, attempts[1].agent);
-        assert.equal(attempts[0].payload, attempts[1].payload);
-      }
-    }
-  } finally {
-    if (previous === undefined) delete process.env.CEREBRAS_API_KEY;
-    else process.env.CEREBRAS_API_KEY = previous;
   }
+  const { createLocalDecisionModel } = load("src/lib/local-decision-model.ts");
+  const { searchTrialsAndMakeQuestions } = load("src/lib/trial-workflow.ts", {
+    "./clinical-trials": { searchTrialsByDiagnosis: async () => retrieval() },
+    "./local-decision-model": { createLocalDecisionModel: () => createLocalDecisionModel({
+      baseUrl: "http://localhost:11434", modelId: "tev1:4b", timeoutMs: 1000,
+      fetcher: async (_url, options) => {
+        const { state, model } = JSON.parse(options.body);
+        assert.equal(model, "tev1:4b");
+        const index = Number(state.title.split(" ")[1]);
+        calls.push(index);
+        return Response.json({ answers: { applicableness: { type: "score", score: scores[index] / 25 } } });
+      },
+    }) },
+    "@strands-agents/sdk": { Agent: MockAgent },
+    "@strands-agents/sdk/models/openai": { OpenAIModel: MockModel },
+    "@strands-agents/sdk/models/google": { GoogleModel: MockModel },
+  });
+  const result = await searchTrialsAndMakeQuestions(input);
+  assert.deepEqual(calls, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "questions"]);
+  assert.deepEqual(result.trialSums.map(({ id }) => id), ["NCT6", "NCT3", "NCT1"]);
 });
 
 function rankingSetup(evaluateEligibility, rankTrials) {
@@ -303,8 +240,8 @@ test("eligibility uses prepared question text, keeps false and zero, and leaves 
     assert.equal(condition, "Condition");
     assert.deepEqual(eligible, [trials[0], trials[2]]);
     return [
-      { rank: 1, explanation: "Best fit", trial: eligible[1] },
-      { rank: 2, explanation: "Potential fit", trial: eligible[0] },
+      { rank: 1, explanation: "Best fit", treatment: "Example therapy", trial: eligible[1] },
+      { rank: 2, explanation: "Potential fit", treatment: null, trial: eligible[0] },
     ];
   });
   const result = await evaluateEligibilityAndRankTrials(prepared, [
@@ -312,7 +249,7 @@ test("eligibility uses prepared question text, keeps false and zero, and leaves 
     { id: "age", question: "Untrusted replacement text", answer: 0 },
   ], "Condition");
   assert.deepEqual(result, {
-    studies: [{ ...trials[2], rank: 1, explanation: "Best fit" }, { ...trials[0], rank: 2, explanation: "Potential fit" }],
+    studies: [{ ...trials[2], rank: 1, explanation: "Best fit", treatment: "Example therapy" }, { ...trials[0], rank: 2, explanation: "Potential fit", treatment: null }],
     evaluatedCount: 3, excludedCount: 1,
   });
   assert.deepEqual(calls.map(text => text.split("\n")[0]), ["Trial: A", "Trial: B", "Trial: C"]);
@@ -415,4 +352,18 @@ test("invalid trial limits fail before retrieval and inference", async () => {
     }
     delete process.env[key];
   }
+});
+
+test("clinical trial results display the treatment extracted during ranking", () => {
+  const { TrialResearchResults } = load("src/components/trial-research-results.tsx");
+  const result = {
+    studies: [
+      { ...trial("A"), rank: 1, explanation: "Potential fit", treatment: "Drug A + supplement B" },
+      { ...trial("B"), rank: 2, explanation: "Potential fit", treatment: null },
+    ],
+    evaluatedCount: 2, excludedCount: 0,
+  };
+  const html = renderToStaticMarkup(createElement(TrialResearchResults, { result }));
+  assert.match(html, /Drug A \+ supplement B/);
+  assert.match(html, /Not identified in the trial metadata/);
 });

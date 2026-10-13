@@ -9,7 +9,6 @@ export type ResearchArticle = {
 
 export type EvaluatedDrugArticle = ResearchArticle & {
   applicableness: number;
-  treatment: string | null;
   efficacy: number;
 };
 

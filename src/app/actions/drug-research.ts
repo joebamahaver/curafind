@@ -34,10 +34,6 @@ export async function searchAndEvaluateDrugs(
   } catch (error) {
     return { success: false, error: (error as Error).message };
   }
-  if (!process.env.GROQ_API_KEY) {
-    return { success: false, error: "GROQ_API_KEY is not configured." };
-  }
-
   try {
     // Use the same retrieval functions as /api/drugs, without fetching that route.
     const articleIds = await searchDrugResearch(input.data);
@@ -52,7 +48,7 @@ export async function searchAndEvaluateDrugs(
         typeof article.abstract === "string" && article.abstract.trim().length > 0)
       .slice(0, evaluationLimit);
 
-    // The cap is applied before any LLM calls. Each study gets a fresh agent.
+    // Apply the cap before sending stateless scoring requests to local Ollama.
     const evaluations = candidates.length > 0
       ? await Promise.allSettled(candidates.map(async article => {
           const { evaluateStudy } = await import("@/lib/evaltools");

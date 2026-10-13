@@ -10,7 +10,8 @@ npm run test:eval
 node --experimental-strip-types --test tests/evaltools.test.mjs
 ```
 
-`test:eval` selects the evaluator, evaluation API, and trial workflow suites.
+`test:eval` selects the local decision adapter, evaluator, evaluation API, and
+trial workflow suites.
 `npm test` also runs location search, drug research, browser coordination,
 result rendering, and trial search client tests. Tests require no API keys,
 network access, or running Next.js server. Mocked provider failures are deliberate
@@ -18,9 +19,10 @@ test inputs. Some source functions still log their model selection during tests.
 
 | File | Coverage |
 | --- | --- |
-| `tests/evaltools.test.mjs` | All five public evaluators: serialized inputs, structured output validation, score boundaries, nullable treatments, typed questions with unique UUIDs, eligibility booleans, complete ranking IDs, original metadata, provider errors, and model selection. |
+| `tests/local-decision-model.test.mjs` | Ollama System One request shape, configuration, named answer validation, score/probability bounds, choice membership, request limits, errors, timeouts, and cancellation. |
+| `tests/evaltools.test.mjs` | All five public evaluators: serialized inputs, structured output validation, score boundaries, treatments during trial ranking, typed questions with unique UUIDs, eligibility booleans, complete ranking IDs, original metadata, provider errors, and model selection. |
 | `tests/evaluation-api.test.mjs` | The five evaluation POST handlers: input normalization, response shapes, malformed JSON, invalid fields, missing keys, provider failures, no-store headers, unique IDs, typed answers, and metadata preservation. |
-| `tests/trial-workflow.test.mjs` | Scoring concurrency and shortlist limits, Google stream fallback, cancellation, canonical prepared question text, missing answers, sequential eligibility checks, exclusions and ranking. |
+| `tests/trial-workflow.test.mjs` | Scoring concurrency and shortlist limits, local scoring and cloud question generation, cancellation, canonical prepared question text, missing answers, sequential eligibility checks, exclusions and ranking. |
 | `tests/trial-search-client.test.mjs` | JSON request/response contract, cancellation signal forwarding, preserved metadata, unreadable responses, service errors and network failures. |
 | `tests/clinical-trials-location.test.mjs` | ZIP lookup and radius filtering, invalid locations, geocoding failures, cancellation, and trial search route validation. |
 | `tests/drug-evaluation.test.mjs` | Evaluation/display limits, partial failures, drug Server Function calls, result rendering, independent search branches, input validation and cancellation. |
@@ -33,13 +35,11 @@ fresh module cache so the model rotation does not leak between test cases. Use
 tests. Keep tests that mutate the environment sequential within each file.
 `tests/helpers/fixtures.mjs` supplies full trial metadata and typed questions.
 
-When implementing a decisions API backend, preserve the public evaluator
-contracts exercised here. Replace the SDK boundary mocks with the new decision
-client or transport mock as appropriate. Keep output validation, provider error,
-ranking integrity, and endpoint tests; add success, malformed response, and
-failure cases for the new adapter. Provider-specific rotation/fallback tests
-should change if that behavior changes deliberately. Prepared searches use
-`trialSums`; final patient ranking responses use `studies`.
+Local evaluator tests run the real decision adapter with a mocked HTTP boundary.
+Question generation and ranking use SDK mocks. They check that local evaluation
+neither constructs cloud models nor consumes the cloud ranking rotation.
+Prepared searches use `trialSums`; final patient ranking responses use `studies`
+and include the nullable treatment extracted during ranking.
 
 These tests verify application behavior with controlled outputs. They do not
 measure model quality or exercise a real provider or browser interaction.

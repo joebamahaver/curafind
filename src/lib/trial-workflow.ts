@@ -46,7 +46,7 @@ export async function searchTrialsAndMakeQuestions(
   const studies: TrialSummary[] = [];
   const concurrency = 4;
 
-  // Each call gets a fresh agent and the next model in the existing pool.
+  // Each call scores a trial with a stateless local decision request.
   // Finish a batch before starting another to keep at most four evaluations active.
   for (let start = 0; start < trials.trialSums.length; start += concurrency) {
     options.signal?.throwIfAborted();
@@ -57,6 +57,7 @@ export async function searchTrialsAndMakeQuestions(
         trial.title,
         input.diagnosis,
         trial.conditions,
+        { signal: options.signal },
       );
       return { ...trial, applicableness: result.applicableness };
     }));
@@ -106,7 +107,7 @@ export async function evaluateEligibilityAndRankTrials(
   const eligibleTrials: TrialSummary[] = [];
   for (const trial of prepared_trials.trialSums) {
     options.signal?.throwIfAborted();
-    const eligible = await evaluateEligibility(questionAnswers, condition, eligibilityText(trial));
+    const eligible = await evaluateEligibility(questionAnswers, condition, eligibilityText(trial), { signal: options.signal });
     if (eligible) eligibleTrials.push(trial);
   }
   options.signal?.throwIfAborted();
@@ -114,7 +115,7 @@ export async function evaluateEligibilityAndRankTrials(
     ? await rankTrials(questionAnswers, condition, eligibleTrials)
     : [];
   return {
-    studies: ranked.map(({ trial, rank, explanation }) => ({ ...trial, rank, explanation })),
+    studies: ranked.map(({ trial, rank, explanation, treatment }) => ({ ...trial, rank, explanation, treatment })),
     evaluatedCount: prepared_trials.trialSums.length,
     excludedCount: prepared_trials.trialSums.length - eligibleTrials.length,
   };

@@ -14,7 +14,8 @@ export async function POST(request: Request) {
       input.answers,
       input.condition,
       input.criterion,
+      { signal: request.signal },
     );
     return { eligible };
-  });
+  }, { requireGroqKey: false });
 }

@@ -17,11 +17,12 @@ and 2. Restart a running server after changing `.env`.
 
 The flow takes the first available abstracts in the search's returned order,
 up to `DRUG_EVAL_LIMIT`. Studies without abstracts are skipped. Each selected
-study is passed to `evaluateStudy(condition, abstract)`, which creates a fresh
-agent. Its `treatment`, `applicableness`, and `efficacy` are added to the original
-article JSON. Scores are estimates from abstracts, not treatment success rates.
-`treatment` can identify a drug, supplement, behavioral therapy, procedure, or
-another intervention; it is `null` if none is identified in the abstract.
+study is passed to `evaluateStudy(condition, abstract)`, which sends one local
+Ollama decisions request containing applicability and efficacy questions. Its
+`applicableness` and `efficacy` are added to the original article JSON. Scores
+are estimates from abstracts, not treatment success rates. Study scoring no
+longer extracts treatment names; treatment extraction belongs to clinical-trial
+`rankTrials`. Research cards display abstracts and scores.
 
 Results sort by descending `applicableness`, then descending `efficacy` to break
 ties. `articles` contains all successful evaluations; `topArticles` contains up
@@ -29,11 +30,10 @@ to `DRUG_DISPLAY_LIMIT` studies for the browser. `ResearchResultsReader` places
 them in the Research tab and displays one study at a time with Previous/Next
 controls. The raw results JSON retains all successful `articles`.
 
-Model selection is shared with the trial evaluators in `src/lib/evaltools.ts`.
-See [Evaluation API examples](./evaluation-api.md) for the current Google and
-optional Cerebras pool and required server credentials. The drug Server Function
-still checks for `GROQ_API_KEY` before retrieval, even when another provider is
-selected. Drug evaluations use `Promise.allSettled`, independently of the trial
+Local scoring is configured through `OLLAMA_BASE_URL`, `DECISIONS_MODEL`, and
+`DECISIONS_TIMEOUT_MS`; it requires no Groq or Gemini key. See
+[Evaluation API examples](./evaluation-api.md) for setup and score semantics.
+Drug evaluations use `Promise.allSettled`, independently of the trial
 pipeline's batches of four.
 
 If an individual evaluation fails, successful results still display and

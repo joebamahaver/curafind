@@ -29,7 +29,7 @@ function setup({ missingAbstracts = false, failures = [] } = {}) {
         calls.push(["evaluate", condition, abstract]);
         if (failures.includes(abstract)) throw new Error("Mock provider failure");
         const [applicableness, efficacy] = scores[Number(abstract)];
-        return { applicableness, efficacy, treatment: `Treatment ${abstract}` };
+        return { applicableness, efficacy };
       },
     },
   };
@@ -49,7 +49,7 @@ test("defaults cap evaluation at five usable abstracts and display two, ranking 
     assert.deepEqual(result.data.topArticles.map(article => article.id), ["3", "2"]);
     assert.equal(result.data.articles[0].abstract, "3");
     assert.deepEqual(result.data.articles[0].extraMetadata, { retained: true });
-    assert.equal(result.data.articles[0].treatment, "Treatment 3");
+    assert.equal(Object.hasOwn(result.data.articles[0], "treatment"), false);
   });
 });
 
@@ -63,12 +63,11 @@ test("environment settings independently change evaluation and display counts", 
   });
 });
 
-test("invalid input, configuration, and missing key fail before retrieval or inference", async () => {
+test("invalid input and configuration fail before retrieval or inference", async () => {
   for (const values of [
     { ...defaults, DRUG_EVAL_LIMIT: "0" },
     { ...defaults, DRUG_DISPLAY_LIMIT: "1.5" },
     { ...defaults, DRUG_EVAL_LIMIT: "invalid" },
-    { ...defaults, GROQ_API_KEY: "" },
   ]) {
     await withEnv(values, async () => {
       const { searchAndEvaluateDrugs, calls } = setup();
@@ -142,10 +141,7 @@ test("result cards render only the selected top results with source links and bo
     const { renderToStaticMarkup } = require("react-dom/server");
     const { DrugResearchResults } = load("src/components/drug-research-results.tsx");
     const html = renderToStaticMarkup(createElement(DrugResearchResults, { result: data }));
-    assert.match(html, /Treatment 3/);
-    assert.match(html, /Treatment 2/);
-    assert.doesNotMatch(html, /Treatment 1/);
-    assert.match(html, /Treatment:<\/span>/);
+    assert.doesNotMatch(html, /Treatment:/);
     assert.equal((html.match(/data-slot="card"/g) ?? []).length, 2);
     assert.match(html, /Applicability/);
     assert.match(html, /Estimated efficacy/);
@@ -243,4 +239,13 @@ test("unselected searches, blank input, and already-cancelled requests never dis
   const controller = new AbortController();
   controller.abort();
   await assert.rejects(client.requestResearchSearch({ condition: "Example", clinicalTrials: true, offLabelDrugsOrSupplements: true }, controller.signal, fetcher), { name: "AbortError" });
+});
+
+test("drug study scoring no longer requires a Groq key", async () => {
+  await withEnv({ ...defaults, GROQ_API_KEY: undefined }, async () => {
+    const result = await setup().searchAndEvaluateDrugs("Example");
+    assert.equal(result.success, true);
+    assert.equal(result.data.evaluatedCount, 5);
+    assert.equal(result.data.articles.some(article => Object.hasOwn(article, "treatment")), false);
+  });
 });

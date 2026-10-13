@@ -19,6 +19,7 @@ export function TrialResearchResults({ result, activeIndex }: { result: FinalTri
             <a href={`https://clinicaltrials.gov/study/${encodeURIComponent(trial.id)}`} target="_blank" rel="noreferrer" className="hover:underline">{trial.title}</a>
           </h3>
           <p className="mt-3 whitespace-pre-line text-sm leading-6">{trial.explanation}</p>
+          <p className="mt-3 text-sm text-muted-foreground">Treatment: {trial.treatment ?? "Not identified in the trial metadata"}</p>
           <details className="mt-3 text-sm">
             <summary className="cursor-pointer">Study details and eligibility</summary>
             <div className="mt-2 space-y-2 text-muted-foreground">

@@ -34,9 +34,6 @@ export function DrugResearchResults({ result, activeIndex }: { result: DrugResea
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="whitespace-pre-wrap text-sm leading-7 text-foreground/85">{article.abstract}</p>
-            <p className="text-xs text-muted-foreground">
-              <span className="font-medium">Treatment:</span> {article.treatment ?? "Not identified in the abstract"}
-            </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg bg-primary/5 p-3">
                 <p className="text-xs text-muted-foreground">Applicability</p>

@@ -28,17 +28,10 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!process.env.GROQ_API_KEY) {
-    return Response.json(
-      { error: "GROQ_API_KEY is not configured." },
-      { status: 500, headers },
-    );
-  }
-
   try {
     const { evaluateTrial } = await import("@/lib/evaltools");
     const { summary, title, condition, trial_conditions } = parsed.data;
-    const result = await evaluateTrial(summary, title, condition, trial_conditions);
+    const result = await evaluateTrial(summary, title, condition, trial_conditions, { signal: request.signal });
     return Response.json(result, { headers });
   } catch (error) {
     console.error("Trial evaluation failed:", error);

@@ -18,7 +18,7 @@ potential matches. See [API examples](./evaluation-api.md) and
    size, overriding the caller's valid `pageSize`.
 4. Each retrieved trial is scored using
    `evaluateTrial(summary, title, diagnosis, conditions)`. Calls run in batches
-   of at most four, each with a fresh agent. The validated `applicableness`
+   of at most four, each with a stateless local decision request. The validated `applicableness`
    score ranges from 0 to 100 and stays attached to the original metadata.
 5. Trials sort by descending applicability. The top `TRIAL_SHORTLIST_LIMIT`
    trials supply their IDs, age bounds, sex, and criteria to one
@@ -70,7 +70,9 @@ trial, while missing or uncertain information remains a potential match. One
 supplied trial must appear exactly once, with original metadata preserved.
 No eligible trials skips the ranking model call.
 
-Final `studies` contain `rank` and `explanation`. `evaluatedCount` counts
+Final `studies` contain `rank`, `explanation`, and `treatment` (string or null).
+Treatment extraction happens during clinical-trial ranking from interventions
+and metadata. The trial reader displays this field. `evaluatedCount` counts
 shortlisted trials checked for eligibility; `excludedCount` counts exclusions.
 The reader displays one ranked trial at a time with details and a study link.
 "Edit trial answers" returns to the retained form. The study team must confirm
